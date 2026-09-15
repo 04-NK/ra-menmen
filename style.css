@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
-  color: #263b43;
-  background-color: #83b8d5;
+  color: #e5e9fc;
+  background-color: #a2afb5;
 }
 
 * {
@@ -19,6 +19,7 @@ body {
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
+  text-align: center;
 }
 
 .card {
@@ -41,7 +42,7 @@ h1 {
 
 .tagline {
   margin: 0;
-  color: #47565b;
+  color: #223b47;
   font-size: clamp(14px, 2.5vw, 16px);
   font-weight: 400;
   line-height: 2;
