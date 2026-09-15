@@ -1,0 +1,50 @@
+:root {
+  color-scheme: light;
+  color: #263b43;
+  background-color: #83b8d5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: clamp(20px, 5vw, 64px);
+  background-image: url("background.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  padding: clamp(40px, 7vw, 64px) 24px;
+  border-radius: 2px;
+  background-color: #fffdf8;
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 24px;
+  font-size: clamp(40px, 7vw, 52px);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+}
+
+.tagline {
+  margin: 0;
+  color: #47565b;
+  font-size: clamp(14px, 2.5vw, 16px);
+  font-weight: 400;
+  line-height: 2;
+  letter-spacing: 0.04em;
+  text-wrap: balance;
+}
