@@ -1,19 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}場所を追加 | ヨリタビ{% endblock %}
+{% block title %}場所の管理 | ヨリタビ{% endblock %}
 {% block body_class %}page-admin{% endblock %}
 
 {% block content %}
   <main class="admin-content">
     <div class="admin-title-row">
       <div>
-        <h1>場所を追加</h1>
+        <h1>場所の管理</h1>
         <p class="admin-lead">地図に載せるお店や観光地を登録します。</p>
       </div>
     </div>
 
+    <!-- 1件ずつ登録するフォーム -->
     <section class="admin-panel">
-      <!-- 登録結果を表示する -->
+      <h2>1件ずつ追加</h2>
+
       {% if success %}
         <p class="form-message form-message-success">場所を登録しました。</p>
       {% endif %}
@@ -93,5 +95,106 @@
         <button class="form-submit" type="submit">登録する</button>
       </form>
     </section>
+
+    <!-- JSONファイルからまとめて登録する -->
+    <section class="admin-panel">
+      <h2>JSONから追加</h2>
+      <p class="panel-description">テンプレートに合わせたJSONファイルを選択してください。一度に100件まで登録できます。</p>
+
+      {% if imported_count %}
+        <p class="form-message form-message-success">{{ imported_count }}件の場所を登録しました。</p>
+      {% endif %}
+
+      {% if import_error %}
+        <p class="form-message form-message-error">{{ import_error }}</p>
+      {% endif %}
+
+      <form class="json-import-form" action="{{ url_for('import_places') }}" method="post" enctype="multipart/form-data">
+        <label>
+          <span>JSONファイル</span>
+          <input type="file" name="json_file" accept=".json,application/json" required>
+        </label>
+        <button class="form-submit" type="submit">JSONから登録する</button>
+      </form>
+
+      <div class="json-template-heading">
+        <h3>JSONテンプレート</h3>
+        <button class="copy-button" id="copy-json-template" type="button">コピー</button>
+      </div>
+      <pre class="json-template" id="json-template"><code>{{ json_template }}</code></pre>
+      <p class="template-note">カテゴリは restaurant、cafe、fast_food、shop、tourism、park、museum、other から選びます。</p>
+      <p class="copy-result" id="copy-result" aria-live="polite"></p>
+    </section>
+
+    <!-- 登録済みの場所を確認・削除する -->
+    <section class="admin-panel">
+      <div class="places-heading">
+        <h2>場所の一覧</h2>
+        {% if not list_error %}<span>{{ places | length }}件</span>{% endif %}
+      </div>
+
+      {% if deleted_count is not none %}
+        <p class="form-message form-message-success">{{ deleted_count }}件の場所を削除しました。</p>
+      {% endif %}
+
+      {% if delete_error %}
+        <p class="form-message form-message-error">{{ delete_error }}</p>
+      {% endif %}
+
+      {% if list_error %}
+        <p class="form-message form-message-error">{{ list_error }}</p>
+      {% elif places %}
+        <form action="{{ url_for('remove_places') }}" method="post" id="delete-places-form">
+          <div class="places-actions">
+            <label class="select-all-label">
+              <input type="checkbox" id="select-all-places">
+              <span>すべて選択</span>
+            </label>
+            <button class="delete-button" id="delete-places-button" type="submit" disabled>選択した場所を削除</button>
+          </div>
+
+          <div class="places-table-wrap">
+            <table class="places-table">
+              <thead>
+                <tr>
+                  <th class="select-column"><span class="visually-hidden">選択</span></th>
+                  <th>名前</th>
+                  <th>カテゴリ</th>
+                  <th>住所</th>
+                  <th>緯度・経度</th>
+                  <th>状態</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for place in places %}
+                  <tr>
+                    <td class="select-column">
+                      <input class="place-checkbox" type="checkbox" name="place_ids" value="{{ place.id }}" aria-label="{{ place.name }}を選択">
+                    </td>
+                    <td>{{ place.name }}</td>
+                    <td>{{ category_labels.get(place.category, place.category) }}</td>
+                    <td>{{ place.address or '未設定' }}</td>
+                    <td class="coordinates">{{ place.latitude }}, {{ place.longitude }}</td>
+                    <td>
+                      {% if place.is_published %}
+                        <span class="place-status place-status-published">公開中</span>
+                      {% else %}
+                        <span class="place-status">非公開</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </form>
+      {% else %}
+        <p class="empty-message">まだ場所が登録されていません。</p>
+      {% endif %}
+    </section>
   </main>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 {% endblock %}
