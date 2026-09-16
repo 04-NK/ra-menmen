@@ -16,8 +16,34 @@
 
 {% block content %}
   <main class="app-content">
-    <!-- 地図を表示 -->
-    <div id="map" aria-label="周辺の地図"></div>
+    <!-- 営業中の場所だけに絞り込む -->
+    <div class="map-toolbar" aria-label="地図の表示設定">
+      <label class="map-filter-check">
+        <input id="open-now-filter" type="checkbox">
+        <span>今営業中</span>
+      </label>
+
+      <label class="map-sort">
+        <span>並び順</span>
+        <select id="place-sort">
+          <option value="price_asc">安い順</option>
+        </select>
+      </label>
+      <p id="place-count" class="place-count" aria-live="polite">場所を読み込み中</p>
+    </div>
+
+    <div class="map-layout">
+      <div class="map-area">
+        <!-- 地図を表示 -->
+        <div id="map" aria-label="周辺の地図"></div>
+        <p id="map-message" class="map-message" role="status" hidden></p>
+      </div>
+
+      <!-- 地図上の場所を選択中の順番で表示 -->
+      <aside class="place-list-panel" aria-label="場所の一覧">
+        <ol id="place-list" class="map-place-list"></ol>
+      </aside>
+    </div>
   </main>
 {% endblock %}
 

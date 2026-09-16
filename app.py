@@ -2,9 +2,10 @@ import hmac
 import json
 import os
 import re
-from datetime import date, time
+from datetime import date, datetime, time
 from functools import wraps
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 import psycopg
 from flask import (
@@ -43,6 +44,7 @@ WEEKDAYS = (
 )
 MAX_JSON_FILE_SIZE = 1_000_000
 MAX_JSON_PLACES = 100
+JAPAN_TIME_ZONE = ZoneInfo("Asia/Tokyo")
 JSON_TEMPLATE = {
     "places": [
         {
@@ -351,11 +353,94 @@ def main():
     return render_template("app.html")
 
 
+# DBから取得した時刻を比較できる形にそろえる
+def parse_database_time(value):
+    if isinstance(value, time):
+        return value
+    if isinstance(value, str):
+        try:
+            return time.fromisoformat(value)
+        except ValueError:
+            return None
+    return None
+
+
+# 曜日別の営業時間から、指定した時刻に営業中か判定する
+def is_place_open(place, current_datetime):
+    current_day = current_datetime.weekday()
+    current_time = current_datetime.time().replace(tzinfo=None)
+
+    for hours in place.get("opening_hours") or []:
+        if hours.get("is_closed"):
+            continue
+
+        opens_at = parse_database_time(hours.get("opens_at"))
+        closes_at = parse_database_time(hours.get("closes_at"))
+        if opens_at is None or closes_at is None:
+            continue
+
+        day_of_week = hours.get("day_of_week")
+        if not isinstance(day_of_week, int):
+            continue
+        if opens_at < closes_at:
+            if day_of_week == current_day and opens_at <= current_time < closes_at:
+                return True
+            continue
+
+        # 閉店が開店以前なら、翌日にまたがる営業時間として扱う
+        if day_of_week == current_day and current_time >= opens_at:
+            return True
+        if (day_of_week + 1) % 7 == current_day and current_time < closes_at:
+            return True
+
+    return False
+
+
+def add_open_status(place, current_datetime):
+    place = dict(place)
+    opening_hours = place.get("opening_hours") or []
+    place["is_open_now"] = is_place_open(place, current_datetime)
+
+    if not opening_hours:
+        place["open_status"] = "営業時間未設定"
+    elif place["is_open_now"]:
+        place["open_status"] = "営業中"
+    else:
+        place["open_status"] = "営業時間外"
+
+    return place
+
+
+def price_sort_key(place):
+    price_min = place.get("price_min")
+    price_max = place.get("price_max")
+    return (
+        price_min is None,
+        price_min or 0,
+        price_max is None,
+        price_max or 0,
+        place.get("name", ""),
+    )
+
+
 # 地図に表示する登録済みスポットを返す
 @app.get("/api/places")
 def places():
     try:
-        return jsonify({"places": get_published_places()})
+        current_datetime = datetime.now(JAPAN_TIME_ZONE)
+        published_places = [
+            add_open_status(place, current_datetime)
+            for place in get_published_places()
+        ]
+
+        if request.args.get("open_now") == "1":
+            published_places = [
+                place for place in published_places if place["is_open_now"]
+            ]
+
+        published_places.sort(key=price_sort_key)
+
+        return jsonify({"places": published_places})
     except DatabaseNotConfiguredError:
         return jsonify({"error": "データベースが設定されていません", "places": []}), 503
     except psycopg.Error:
