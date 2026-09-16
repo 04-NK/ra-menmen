@@ -37,10 +37,20 @@
         <!-- 地図を表示 -->
         <div id="map" aria-label="周辺の地図"></div>
         <p id="map-message" class="map-message" role="status" hidden></p>
+        <!-- 地図と一覧の境目から一覧を開閉する -->
+        <button
+          id="place-list-toggle"
+          class="place-list-toggle"
+          type="button"
+          aria-controls="place-list-panel"
+          aria-expanded="true"
+          aria-label="一覧を隠す"
+          title="一覧を隠す"
+        ><span class="place-list-toggle-icon" aria-hidden="true">›</span></button>
       </div>
 
       <!-- 地図上の場所を選択中の順番で表示 -->
-      <aside class="place-list-panel" aria-label="場所の一覧">
+      <aside id="place-list-panel" class="place-list-panel" aria-label="場所の一覧">
         <ol id="place-list" class="map-place-list"></ol>
       </aside>
     </div>

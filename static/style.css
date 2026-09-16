@@ -1,6 +1,26 @@
 /* 全画面共通 */
 :root {
   color-scheme: light;
+  --color-text: #223b47;
+  --color-text-secondary: #334b55;
+  --color-text-muted: #52636b;
+  --color-text-soft: #637278;
+  --color-text-quiet: #64747a;
+  --color-accent: #315f73;
+  --color-border: #d8dedd;
+  --color-border-strong: #aeb9bd;
+  --color-surface: #fff;
+  --color-on-accent: #fff;
+  --color-surface-subtle: #f4f6f6;
+  --color-surface-selected: #eef3f4;
+  --color-success: #285e3b;
+  --color-success-bg: #e5f1e8;
+  --color-danger: #8a3028;
+  --color-danger-strong: #9a3f35;
+  --color-danger-bg: #f8e6e3;
+  --color-control-border: #87969c;
+  --color-disabled: #899397;
+  --radius-control: 3px;
   color: #e5e9fc;
   background-color: #a2afb5;
 }
@@ -38,7 +58,7 @@ body {
 
 .tagline {
   margin: 0;
-  color: #223b47;
+  color: var(--color-text);
   font-size: clamp(14px, 2.5vw, 16px);
   font-weight: 400;
   line-height: 2;
@@ -50,9 +70,9 @@ body {
   display: inline-block;
   margin-top: 32px;
   padding: 12px 32px;
-  border: 1px solid #223b47;
+  border: 1px solid var(--color-text);
   border-radius: 3px;
-  color: #223b47;
+  color: var(--color-text);
   background-color: #fffdf8;
   font-size: 16px;
   line-height: 1.5;
@@ -65,7 +85,7 @@ body {
 
 /* キーボード操作で選択中のリンクを示す */
 a:focus-visible {
-  outline: 3px solid #223b47;
+  outline: 3px solid var(--color-text);
   outline-offset: 4px;
 }
 
@@ -76,8 +96,8 @@ a:focus-visible {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  color: #223b47;
-  background-color: #fff;
+  color: var(--color-text);
+  background-color: var(--color-surface);
 }
 
 /* base.htmlの共通ヘッダー */
@@ -89,7 +109,7 @@ a:focus-visible {
   justify-content: space-between;
   gap: 16px;
   padding: clamp(14px, 3vw, 20px) clamp(16px, 5vw, 64px);
-  border-bottom: 1px solid #d8dedd;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .app-logo {
@@ -102,7 +122,7 @@ a:focus-visible {
 
 .back-link,
 .edit-link {
-  color: #315f73;
+  color: var(--color-accent);
   text-underline-offset: 3px;
 }
 
@@ -134,8 +154,8 @@ a:focus-visible {
   gap: 16px;
   min-height: 58px;
   padding: 10px clamp(16px, 5vw, 64px);
-  border-bottom: 1px solid #d8dedd;
-  background-color: #fff;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
 }
 
 .map-filter-check,
@@ -143,7 +163,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #334b55;
+  color: var(--color-text-secondary);
   font-size: 14px;
   font-weight: 600;
 }
@@ -155,20 +175,20 @@ a:focus-visible {
 .map-filter-check input {
   width: 18px;
   height: 18px;
-  accent-color: #315f73;
+  accent-color: var(--color-accent);
 }
 
 .map-sort {
   padding-left: 16px;
-  border-left: 1px solid #d8dedd;
+  border-left: 1px solid var(--color-border);
 }
 
 .map-sort select {
   padding: 7px 28px 7px 10px;
-  border: 1px solid #aeb9bd;
-  border-radius: 3px;
-  color: #223b47;
-  background-color: #fff;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background-color: var(--color-surface);
   font: inherit;
 }
 
@@ -178,10 +198,49 @@ a:focus-visible {
   font-size: 13px;
 }
 
+.place-list-toggle {
+  z-index: 700;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
+  box-shadow: none;
+  font: inherit;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.place-list-toggle-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.place-list-toggle:hover {
+  background-color: var(--color-surface-selected);
+}
+
+.place-list-toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.place-list-toggle-collapsed {
+  right: 0;
+}
+
 /* 地図と一覧を並べて表示する */
 .map-layout {
   flex: 1;
   display: flex;
+  position: relative;
   min-height: 0;
   width: 100%;
 }
@@ -206,10 +265,10 @@ a:focus-visible {
   max-width: calc(100% - 32px);
   margin: 0;
   padding: 10px 14px;
-  border: 1px solid #d8dedd;
-  border-radius: 3px;
-  color: #334b55;
-  background-color: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
   box-shadow: 0 3px 12px rgb(34 59 71 / 16%);
   font-size: 14px;
   transform: translateX(-50%);
@@ -226,9 +285,9 @@ a:focus-visible {
   place-items: center;
   width: 48px;
   height: 30px;
-  border: 2px solid #fff;
+  border: 2px solid var(--color-on-accent);
   border-radius: 4px;
-  color: #fff;
+  color: var(--color-on-accent);
   background-color: #a84436;
   box-shadow: 0 2px 7px rgb(34 59 71 / 35%);
   font-size: 12px;
@@ -241,10 +300,10 @@ a:focus-visible {
   place-items: center;
   width: 30px;
   height: 30px;
-  border: 2px solid #fff;
+  border: 2px solid var(--color-on-accent);
   border-radius: 50% 50% 50% 0;
-  color: #fff;
-  background-color: #315f73;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
   box-shadow: 0 2px 7px rgb(34 59 71 / 35%);
   font-size: 12px;
   font-weight: 700;
@@ -255,18 +314,132 @@ a:focus-visible {
   transform: rotate(45deg);
 }
 
-.place-popup p {
-  margin: 6px 0 0;
+/* 店舗情報を読みやすく表示する吹き出し */
+.place-leaflet-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.place-leaflet-popup .leaflet-popup-content {
+  max-height: min(480px, 64vh);
+  margin: 0;
+  overflow-y: auto;
+}
+
+.leaflet-container .place-leaflet-popup a.leaflet-popup-close-button {
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  color: var(--color-text-soft);
+  font-size: 22px;
+  line-height: 26px;
+}
+
+.place-popup {
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.place-popup-heading {
+  padding: 17px 42px 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface-subtle);
+}
+
+.place-popup-name {
+  display: block;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.place-popup-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
 }
 
 .place-popup-status {
-  color: #637278;
-  font-size: 12px;
+  color: var(--color-text-soft);
   font-weight: 700;
 }
 
 .place-popup-status-open {
-  color: #2f7145;
+  color: var(--color-success);
+}
+
+.place-popup-price,
+.place-popup-address,
+.place-popup-description {
+  margin: 0;
+  padding: 12px 18px 0;
+}
+
+.place-popup-price {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.place-popup-address {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.place-popup-description {
+  white-space: pre-line;
+}
+
+.place-popup-section {
+  margin-top: 14px;
+  padding: 13px 18px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.place-popup-section h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.place-hours-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.place-hours-row {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
+}
+
+.place-hours-row dt {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.place-hours-row dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.place-hours-closed {
+  color: #7b5550;
+}
+
+.place-popup-link {
+  display: block;
+  margin: 0 18px 16px;
+  color: var(--color-accent);
+  font-weight: 700;
+  text-underline-offset: 3px;
 }
 
 /* 地図と連動する場所一覧 */
@@ -274,8 +447,8 @@ a:focus-visible {
   flex: 0 0 340px;
   min-width: 0;
   overflow: hidden;
-  border-left: 1px solid #d8dedd;
-  background-color: #fff;
+  border-left: 1px solid var(--color-border);
+  background-color: var(--color-surface);
 }
 
 .map-place-list {
@@ -299,8 +472,8 @@ a:focus-visible {
   border: 0;
   border-bottom: 1px solid #e2e6e5;
   border-radius: 0;
-  color: #223b47;
-  background-color: #fff;
+  color: var(--color-text);
+  background-color: var(--color-surface);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -308,12 +481,12 @@ a:focus-visible {
 
 .map-place-card:hover,
 .map-place-card-active {
-  background-color: #eef3f4;
-  box-shadow: inset 3px 0 #315f73;
+  background-color: var(--color-surface-selected);
+  box-shadow: inset 3px 0 var(--color-accent);
 }
 
 .map-place-card:focus-visible {
-  outline: 3px solid #315f73;
+  outline: 3px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -323,8 +496,8 @@ a:focus-visible {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  color: #fff;
-  background-color: #315f73;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
   font-size: 12px;
   font-weight: 700;
 }
@@ -358,12 +531,12 @@ a:focus-visible {
   flex-wrap: wrap;
   gap: 4px 10px;
   margin-top: 6px;
-  color: #64747a;
+  color: var(--color-text-quiet);
   font-size: 12px;
 }
 
 .map-place-price {
-  color: #315f73;
+  color: var(--color-accent);
   font-weight: 700;
 }
 
@@ -374,15 +547,15 @@ a:focus-visible {
 
 .map-list-empty {
   padding: 20px 6px;
-  color: #64747a;
+  color: var(--color-text-quiet);
   font-size: 14px;
   text-align: center;
 }
 
 /* チーム用の登録画面 */
 .page-admin {
-  color: #223b47;
-  background-color: #f4f6f6;
+  color: var(--color-text);
+  background-color: var(--color-surface-subtle);
 }
 
 .admin-content {
@@ -424,21 +597,21 @@ a:focus-visible {
 
 .admin-lead {
   margin: 8px 0 0;
-  color: #52636b;
+  color: var(--color-text-muted);
   line-height: 1.7;
 }
 
 .admin-panel {
   margin-top: 24px;
   padding: clamp(20px, 5vw, 40px);
-  border: 1px solid #d8dedd;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background-color: #fff;
+  background-color: var(--color-surface);
 }
 
 .panel-description {
   margin: -8px 0 20px;
-  color: #52636b;
+  color: var(--color-text-muted);
   font-size: 14px;
   line-height: 1.7;
 }
@@ -460,10 +633,10 @@ a:focus-visible {
 .category-form input {
   width: 100%;
   padding: 11px 12px;
-  border: 1px solid #aeb9bd;
-  border-radius: 3px;
-  color: #223b47;
-  background-color: #fff;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background-color: var(--color-surface);
   font: inherit;
 }
 
@@ -477,14 +650,14 @@ a:focus-visible {
 .category-list span {
   padding: 5px 9px;
   border-radius: 3px;
-  color: #52636b;
-  background-color: #f4f6f6;
+  color: var(--color-text-muted);
+  background-color: var(--color-surface-subtle);
   font-size: 12px;
 }
 
 .category-list code {
   margin-left: 4px;
-  color: #315f73;
+  color: var(--color-accent);
 }
 
 .category-list-json {
@@ -521,10 +694,10 @@ a:focus-visible {
 .place-form textarea {
   width: 100%;
   padding: 11px 12px;
-  border: 1px solid #aeb9bd;
-  border-radius: 3px;
-  color: #223b47;
-  background-color: #fff;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background-color: var(--color-surface);
   font: inherit;
 }
 
@@ -535,7 +708,7 @@ a:focus-visible {
 .place-form input:focus,
 .place-form select:focus,
 .place-form textarea:focus {
-  border-color: #223b47;
+  border-color: var(--color-text);
   outline: 2px solid rgb(34 59 71 / 18%);
 }
 
@@ -557,7 +730,7 @@ a:focus-visible {
 
 .hours-fieldset > p {
   margin: 6px 0 12px;
-  color: #52636b;
+  color: var(--color-text-muted);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -565,9 +738,9 @@ a:focus-visible {
 .hours-bulk {
   margin-bottom: 16px;
   padding: 16px;
-  border: 1px solid #d8dedd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background-color: #f4f6f6;
+  background-color: var(--color-surface-subtle);
 }
 
 .hours-bulk-times,
@@ -599,7 +772,7 @@ a:focus-visible {
   padding: 5px 8px;
   border: 1px solid #c9d0d2;
   border-radius: 3px;
-  background-color: #fff;
+  background-color: var(--color-surface);
   font-size: 13px;
 }
 
@@ -618,30 +791,30 @@ a:focus-visible {
 .add-hours-period,
 .remove-hours-period {
   padding: 7px 10px;
-  border: 1px solid #87969c;
-  border-radius: 3px;
-  color: #223b47;
-  background-color: #fff;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background-color: var(--color-surface);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
 
 .hours-bulk-actions button:first-child {
-  color: #fff;
-  background-color: #315f73;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
 }
 
 .hours-bulk-result {
   min-height: 1.5em;
   margin: 8px 0 0;
-  color: #52636b;
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 
 .hours-list {
   display: grid;
-  border-top: 1px solid #d8dedd;
+  border-top: 1px solid var(--color-border);
 }
 
 .hours-row {
@@ -650,7 +823,7 @@ a:focus-visible {
   align-items: start;
   gap: 12px;
   padding: 14px 0;
-  border-bottom: 1px solid #d8dedd;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .hours-day {
@@ -673,7 +846,7 @@ a:focus-visible {
 }
 
 .hours-separator {
-  color: #52636b;
+  color: var(--color-text-muted);
 }
 
 .hours-row-actions {
@@ -690,7 +863,7 @@ a:focus-visible {
 
 .add-hours-period:disabled,
 .remove-hours-period:disabled {
-  color: #899397;
+  color: var(--color-disabled);
   cursor: not-allowed;
 }
 
@@ -722,10 +895,10 @@ a:focus-visible {
 .form-submit {
   justify-self: start;
   padding: 11px 28px;
-  border: 1px solid #223b47;
-  border-radius: 3px;
-  color: #fff;
-  background-color: #223b47;
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-control);
+  color: var(--color-on-accent);
+  background-color: var(--color-text);
   font: inherit;
   cursor: pointer;
 }
@@ -751,9 +924,9 @@ a:focus-visible {
 .json-import-form input[type="file"] {
   width: 100%;
   padding: 9px;
-  border: 1px solid #aeb9bd;
-  border-radius: 3px;
-  background-color: #fff;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
   font: inherit;
 }
 
@@ -773,15 +946,15 @@ a:focus-visible {
 .copy-button,
 .delete-button {
   padding: 8px 14px;
-  border-radius: 3px;
+  border-radius: var(--radius-control);
   font: inherit;
   cursor: pointer;
 }
 
 .copy-button {
-  border: 1px solid #87969c;
-  color: #223b47;
-  background-color: #fff;
+  border: 1px solid var(--color-control-border);
+  color: var(--color-text);
+  background-color: var(--color-surface);
 }
 
 .json-template {
@@ -799,7 +972,7 @@ a:focus-visible {
 .copy-result {
   min-height: 1.5em;
   margin: 4px 0 0;
-  color: #52636b;
+  color: var(--color-text-muted);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -807,25 +980,25 @@ a:focus-visible {
 .json-rules {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #d8dedd;
+  border-top: 1px solid var(--color-border);
 }
 
 .json-file-rules {
   margin: 10px 0 18px;
   padding-left: 20px;
-  color: #52636b;
+  color: var(--color-text-muted);
   font-size: 13px;
   line-height: 1.7;
 }
 
 .json-file-rules code,
 .json-field-rules code {
-  color: #315f73;
+  color: var(--color-accent);
 }
 
 .json-field-rules {
   margin: 0;
-  border-top: 1px solid #d8dedd;
+  border-top: 1px solid var(--color-border);
 }
 
 .json-field-rules > div {
@@ -833,7 +1006,7 @@ a:focus-visible {
   grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.8fr);
   gap: 16px;
   padding: 10px 0;
-  border-bottom: 1px solid #d8dedd;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .json-field-rules dt {
@@ -843,14 +1016,14 @@ a:focus-visible {
 
 .json-field-rules dd {
   margin: 0;
-  color: #52636b;
+  color: var(--color-text-muted);
   font-size: 13px;
   line-height: 1.6;
 }
 
 .json-required {
   margin-left: 4px;
-  color: #8a3028;
+  color: var(--color-danger);
   font-size: 11px;
 }
 
@@ -863,7 +1036,7 @@ h3.json-category-heading {
 }
 
 .places-heading > span {
-  color: #52636b;
+  color: var(--color-text-muted);
   font-size: 14px;
 }
 
@@ -885,26 +1058,26 @@ h3.json-category-heading {
 }
 
 .delete-button {
-  border: 1px solid #9a3f35;
-  color: #8a3028;
-  background-color: #fff;
+  border: 1px solid var(--color-danger-strong);
+  color: var(--color-danger);
+  background-color: var(--color-surface);
 }
 
 .delete-button:hover:not(:disabled) {
-  color: #fff;
-  background-color: #9a3f35;
+  color: var(--color-on-accent);
+  background-color: var(--color-danger-strong);
 }
 
 .delete-button:disabled {
   border-color: #c9cecf;
-  color: #899397;
+  color: var(--color-disabled);
   cursor: not-allowed;
 }
 
 .places-table-wrap {
   overflow-x: auto;
-  border: 1px solid #d8dedd;
-  border-radius: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
 }
 
 .places-table {
@@ -917,13 +1090,13 @@ h3.json-category-heading {
 .places-table th,
 .places-table td {
   padding: 12px;
-  border-bottom: 1px solid #d8dedd;
+  border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
 
 .places-table th {
-  color: #52636b;
-  background-color: #f4f6f6;
+  color: var(--color-text-muted);
+  background-color: var(--color-surface-subtle);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -948,13 +1121,13 @@ h3.json-category-heading {
 }
 
 .place-status-published {
-  color: #285e3b;
-  background-color: #e5f1e8;
+  color: var(--color-success);
+  background-color: var(--color-success-bg);
 }
 
 .empty-message {
   margin: 20px 0 0;
-  color: #52636b;
+  color: var(--color-text-muted);
 }
 
 .visually-hidden {
@@ -971,17 +1144,17 @@ h3.json-category-heading {
 .form-message {
   margin: 0 0 20px;
   padding: 12px 14px;
-  border-radius: 3px;
+  border-radius: var(--radius-control);
 }
 
 .form-message-error {
   color: #802c25;
-  background-color: #f8e6e3;
+  background-color: var(--color-danger-bg);
 }
 
 .form-message-success {
-  color: #285e3b;
-  background-color: #e5f1e8;
+  color: var(--color-success);
+  background-color: var(--color-success-bg);
 }
 
 @media (max-width: 600px) {
@@ -994,6 +1167,10 @@ h3.json-category-heading {
     gap: 8px 14px;
     min-height: auto;
     padding: 9px 12px;
+  }
+
+  .place-leaflet-popup .leaflet-popup-content {
+    max-height: min(330px, 40vh);
   }
 
   .place-count {
@@ -1009,10 +1186,29 @@ h3.json-category-heading {
     min-height: 240px;
   }
 
+  .place-list-toggle {
+    z-index: 1001;
+    top: auto;
+    right: calc(50% - 24px);
+    bottom: 0;
+    width: 48px;
+    height: 24px;
+    transform: none;
+  }
+
+  .place-list-toggle-icon {
+    transform: rotate(90deg);
+  }
+
+  .place-list-toggle-collapsed {
+    right: calc(50% - 24px);
+    bottom: 0;
+  }
+
   .place-list-panel {
     flex: 1 1 44%;
     min-height: 190px;
-    border-top: 1px solid #d8dedd;
+    border-top: 1px solid var(--color-border);
     border-left: 0;
   }
 
