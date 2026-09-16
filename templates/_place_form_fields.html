@@ -1,3 +1,12 @@
+{% macro hours_period(key, label, period, is_closed) %}
+  <div class="hours-period">
+    <input type="time" name="hours_{{ key }}_open" value="{{ period.get('open', '') }}" aria-label="{{ label }}の開店時刻" {% if is_closed %}disabled{% endif %}>
+    <span class="hours-separator">〜</span>
+    <input type="time" name="hours_{{ key }}_close" value="{{ period.get('close', '') }}" aria-label="{{ label }}の閉店時刻" {% if is_closed %}disabled{% endif %}>
+    <button class="remove-hours-period" type="button">削除</button>
+  </div>
+{% endmacro %}
+
 <div class="form-grid">
   <label class="form-wide">
     <span>場所の名前 <span class="required-mark">*</span></span>
@@ -36,7 +45,7 @@
 
   <fieldset class="hours-fieldset form-wide">
     <legend>営業時間</legend>
-    <p>営業する曜日は開店・閉店時刻を入力し、休みの曜日は定休日を選びます。</p>
+    <p>昼と夜など営業時間が分かれる場合は、その曜日に時間帯を追加します。</p>
 
     <div class="hours-bulk">
       <strong>まとめて設定</strong>
@@ -63,7 +72,8 @@
       </div>
 
       <div class="hours-bulk-actions">
-        <button type="button" id="apply-hours">選んだ曜日に時刻を反映</button>
+        <button type="button" id="apply-hours">最初の時間帯に反映</button>
+        <button type="button" id="add-hours">時間帯を追加</button>
         <button type="button" id="apply-closed">選んだ曜日を定休日にする</button>
       </div>
       <p class="hours-bulk-result" id="hours-bulk-result" aria-live="polite"></p>
@@ -72,15 +82,27 @@
     <div class="hours-list">
       {% for key, label in weekdays %}
         {% set hours = opening_hours_form.get(key, {}) %}
-        <div class="hours-row" data-day="{{ key }}">
+        {% set periods = hours.get('periods', []) %}
+        <div class="hours-row" data-day="{{ key }}" data-day-label="{{ label }}">
           <span class="hours-day">{{ label }}</span>
-          <input type="time" name="hours_{{ key }}_open" value="{{ hours.get('open', '') }}" aria-label="{{ label }}の開店時刻" {% if hours.get('closed') %}disabled{% endif %}>
-          <span>〜</span>
-          <input type="time" name="hours_{{ key }}_close" value="{{ hours.get('close', '') }}" aria-label="{{ label }}の閉店時刻" {% if hours.get('closed') %}disabled{% endif %}>
-          <label class="hours-closed-label">
-            <input class="hours-closed" type="checkbox" name="hours_{{ key }}_closed" {% if hours.get('closed') %}checked{% endif %}>
-            <span>定休日</span>
-          </label>
+          <div class="hours-day-settings">
+            <div class="hours-periods">
+              {% if periods %}
+                {% for period in periods %}
+                  {{ hours_period(key, label, period, hours.get('closed')) }}
+                {% endfor %}
+              {% else %}
+                {{ hours_period(key, label, {}, hours.get('closed')) }}
+              {% endif %}
+            </div>
+            <div class="hours-row-actions">
+              <button class="add-hours-period" type="button">時間帯を追加</button>
+              <label class="hours-closed-label">
+                <input class="hours-closed" type="checkbox" name="hours_{{ key }}_closed" {% if hours.get('closed') %}checked{% endif %}>
+                <span>定休日</span>
+              </label>
+            </div>
+          </div>
         </div>
       {% endfor %}
     </div>

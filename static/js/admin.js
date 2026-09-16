@@ -5,11 +5,14 @@ const deleteForm = document.querySelector("#delete-places-form");
 const deleteButton = document.querySelector("#delete-places-button");
 const selectAll = document.querySelector("#select-all-places");
 const placeCheckboxes = [...document.querySelectorAll(".place-checkbox")];
+const hoursList = document.querySelector(".hours-list");
 const hoursRows = [...document.querySelectorAll(".hours-row")];
+const hoursRowsByDay = new Map(hoursRows.map((row) => [row.dataset.day, row]));
 const bulkDayCheckboxes = [...document.querySelectorAll(".bulk-day")];
 const bulkOpenTime = document.querySelector("#bulk-open-time");
 const bulkCloseTime = document.querySelector("#bulk-close-time");
 const applyHoursButton = document.querySelector("#apply-hours");
+const addHoursButton = document.querySelector("#add-hours");
 const applyClosedButton = document.querySelector("#apply-closed");
 const hoursBulkResult = document.querySelector("#hours-bulk-result");
 
@@ -44,8 +47,10 @@ selectAll?.addEventListener("change", () => {
   updateSelection();
 });
 
-placeCheckboxes.forEach((checkbox) => {
-  checkbox.addEventListener("change", updateSelection);
+deleteForm?.addEventListener("change", (event) => {
+  if (event.target.classList.contains("place-checkbox")) {
+    updateSelection();
+  }
 });
 
 deleteForm?.addEventListener("submit", (event) => {
@@ -57,26 +62,92 @@ deleteForm?.addEventListener("submit", (event) => {
   }
 });
 
-// 定休日を選んだ曜日は時刻入力を無効にする
-hoursRows.forEach((row) => {
-  const closed = row.querySelector(".hours-closed");
-  const timeInputs = [...row.querySelectorAll('input[type="time"]')];
+function createHoursPeriod(row, opensAt = "", closesAt = "") {
+  const day = row.dataset.day;
+  const dayLabel = row.dataset.dayLabel;
+  const period = document.createElement("div");
+  const openInput = document.createElement("input");
+  const separator = document.createElement("span");
+  const closeInput = document.createElement("input");
+  const removeButton = document.createElement("button");
 
-  closed.addEventListener("change", () => {
-    timeInputs.forEach((input) => {
-      input.disabled = closed.checked;
-    });
-  });
-});
+  period.className = "hours-period";
+  openInput.type = "time";
+  openInput.name = `hours_${day}_open`;
+  openInput.value = opensAt;
+  openInput.setAttribute("aria-label", `${dayLabel}の開店時刻`);
+  separator.className = "hours-separator";
+  separator.textContent = "〜";
+  closeInput.type = "time";
+  closeInput.name = `hours_${day}_close`;
+  closeInput.value = closesAt;
+  closeInput.setAttribute("aria-label", `${dayLabel}の閉店時刻`);
+  removeButton.type = "button";
+  removeButton.className = "remove-hours-period";
+  removeButton.textContent = "削除";
+  period.append(openInput, separator, closeInput, removeButton);
 
-function getSelectedDays() {
-  return bulkDayCheckboxes
-    .filter((checkbox) => checkbox.checked)
-    .map((checkbox) => checkbox.value);
+  return period;
 }
 
-function getHoursRow(day) {
-  return hoursRows.find((row) => row.dataset.day === day);
+function setClosedState(row) {
+  const closed = row.querySelector(".hours-closed");
+  row.querySelectorAll('input[type="time"], .add-hours-period, .remove-hours-period')
+    .forEach((control) => {
+      control.disabled = closed.checked;
+    });
+}
+
+// 曜日ごとの操作は親要素でまとめて受け取る
+hoursList?.addEventListener("change", (event) => {
+  if (event.target.classList.contains("hours-closed")) {
+    setClosedState(event.target.closest(".hours-row"));
+  }
+});
+
+hoursList?.addEventListener("click", (event) => {
+  const row = event.target.closest(".hours-row");
+  if (!row) {
+    return;
+  }
+
+  if (event.target.classList.contains("add-hours-period")) {
+    row.querySelector(".hours-closed").checked = false;
+    row.querySelector(".hours-periods").append(createHoursPeriod(row));
+    setClosedState(row);
+  } else if (event.target.classList.contains("remove-hours-period")) {
+    const periods = row.querySelectorAll(".hours-period");
+    if (periods.length === 1) {
+      periods[0].querySelectorAll('input[type="time"]').forEach((input) => {
+        input.value = "";
+      });
+    } else {
+      event.target.closest(".hours-period").remove();
+    }
+  }
+});
+
+hoursRows.forEach(setClosedState);
+
+function getBulkSelection(emptyMessage, needsTimes = false) {
+  const rows = bulkDayCheckboxes
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => hoursRowsByDay.get(checkbox.value));
+
+  if (!rows.length) {
+    hoursBulkResult.textContent = emptyMessage;
+    return null;
+  }
+  if (needsTimes && (!bulkOpenTime.value || !bulkCloseTime.value)) {
+    hoursBulkResult.textContent = "開店時刻と閉店時刻を入力してください。";
+    return null;
+  }
+
+  return {
+    rows,
+    opensAt: bulkOpenTime.value,
+    closesAt: bulkCloseTime.value,
+  };
 }
 
 // 全曜日・平日・土日をすぐ選べるようにする
@@ -94,48 +165,62 @@ document.querySelectorAll("[data-days]").forEach((button) => {
 });
 
 applyHoursButton?.addEventListener("click", () => {
-  const selectedDays = getSelectedDays();
-
-  if (!selectedDays.length) {
-    hoursBulkResult.textContent = "反映する曜日を選択してください。";
-    return;
-  }
-  if (!bulkOpenTime.value || !bulkCloseTime.value) {
-    hoursBulkResult.textContent = "開店時刻と閉店時刻を入力してください。";
+  const selection = getBulkSelection("反映する曜日を選択してください。", true);
+  if (!selection) {
     return;
   }
 
-  selectedDays.forEach((day) => {
-    const row = getHoursRow(day);
-    const [openInput, closeInput] = row.querySelectorAll('input[type="time"]');
+  selection.rows.forEach((row) => {
     const closed = row.querySelector(".hours-closed");
 
-    openInput.value = bulkOpenTime.value;
-    closeInput.value = bulkCloseTime.value;
-    openInput.disabled = false;
-    closeInput.disabled = false;
+    row.querySelector(".hours-periods").replaceChildren(
+      createHoursPeriod(row, selection.opensAt, selection.closesAt)
+    );
     closed.checked = false;
+    setClosedState(row);
   });
-  hoursBulkResult.textContent = `${selectedDays.length}日分に時刻を反映しました。`;
+  hoursBulkResult.textContent = `${selection.rows.length}日分に時刻を反映しました。`;
+});
+
+addHoursButton?.addEventListener("click", () => {
+  const selection = getBulkSelection("追加する曜日を選択してください。", true);
+  if (!selection) {
+    return;
+  }
+
+  selection.rows.forEach((row) => {
+    const periods = row.querySelector(".hours-periods");
+    const firstInputs = periods.querySelectorAll('input[type="time"]');
+    const firstPeriodIsEmpty =
+      periods.children.length === 1 &&
+      [...firstInputs].every((input) => !input.value);
+
+    if (firstPeriodIsEmpty) {
+      periods.replaceChildren(
+        createHoursPeriod(row, selection.opensAt, selection.closesAt)
+      );
+    } else {
+      periods.append(
+        createHoursPeriod(row, selection.opensAt, selection.closesAt)
+      );
+    }
+    row.querySelector(".hours-closed").checked = false;
+    setClosedState(row);
+  });
+  hoursBulkResult.textContent = `${selection.rows.length}日分に時間帯を追加しました。`;
 });
 
 applyClosedButton?.addEventListener("click", () => {
-  const selectedDays = getSelectedDays();
-
-  if (!selectedDays.length) {
-    hoursBulkResult.textContent = "定休日にする曜日を選択してください。";
+  const selection = getBulkSelection("定休日にする曜日を選択してください。");
+  if (!selection) {
     return;
   }
 
-  selectedDays.forEach((day) => {
-    const row = getHoursRow(day);
-    const timeInputs = [...row.querySelectorAll('input[type="time"]')];
+  selection.rows.forEach((row) => {
     const closed = row.querySelector(".hours-closed");
 
     closed.checked = true;
-    timeInputs.forEach((input) => {
-      input.disabled = true;
-    });
+    setClosedState(row);
   });
-  hoursBulkResult.textContent = `${selectedDays.length}日分を定休日にしました。`;
+  hoursBulkResult.textContent = `${selection.rows.length}日分を定休日にしました。`;
 });

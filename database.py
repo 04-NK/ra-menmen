@@ -44,11 +44,12 @@ OPENING_HOURS_SELECT_SQL = """
             SELECT json_agg(
                 json_build_object(
                     'day_of_week', hours.day_of_week,
+                    'period_index', hours.period_index,
                     'opens_at', to_char(hours.opens_at, 'HH24:MI'),
                     'closes_at', to_char(hours.closes_at, 'HH24:MI'),
                     'is_closed', hours.is_closed
                 )
-                ORDER BY hours.day_of_week
+                ORDER BY hours.day_of_week, hours.period_index
             )
             FROM public.place_opening_hours AS hours
             WHERE hours.place_id = places.id
@@ -95,6 +96,7 @@ def save_opening_hours(cursor, place_id, opening_hours):
         INSERT INTO public.place_opening_hours (
             place_id,
             day_of_week,
+            period_index,
             opens_at,
             closes_at,
             is_closed
@@ -102,6 +104,7 @@ def save_opening_hours(cursor, place_id, opening_hours):
         VALUES (
             %(place_id)s,
             %(day_of_week)s,
+            %(period_index)s,
             %(opens_at)s,
             %(closes_at)s,
             %(is_closed)s
@@ -109,6 +112,13 @@ def save_opening_hours(cursor, place_id, opening_hours):
         """,
         rows,
     )
+
+
+def insert_place(cursor, place):
+    cursor.execute(INSERT_PLACE_SQL, place)
+    place_id = cursor.fetchone()["id"]
+    save_opening_hours(cursor, place_id, place["opening_hours"])
+    return place_id
 
 
 # 場所登録で使えるカテゴリを取得する
@@ -226,10 +236,7 @@ def get_place(place_id):
 def create_place(place):
     with connect_database() as connection:
         with connection.cursor() as cursor:
-            cursor.execute(INSERT_PLACE_SQL, place)
-            place_id = cursor.fetchone()["id"]
-            save_opening_hours(cursor, place_id, place["opening_hours"])
-            return place_id
+            return insert_place(cursor, place)
 
 
 # JSON内の場所を1回の処理でまとめて登録する
@@ -237,9 +244,7 @@ def create_places(places):
     with connect_database() as connection:
         with connection.cursor() as cursor:
             for place in places:
-                cursor.execute(INSERT_PLACE_SQL, place)
-                place_id = cursor.fetchone()["id"]
-                save_opening_hours(cursor, place_id, place["opening_hours"])
+                insert_place(cursor, place)
 
     return len(places)
 

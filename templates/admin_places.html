@@ -89,7 +89,64 @@
         <button class="copy-button" id="copy-json-template" type="button">コピー</button>
       </div>
       <pre class="json-template" id="json-template"><code>{{ json_template }}</code></pre>
-      <p class="template-note">カテゴリは登録済みのDB用の値を使います。価格は円単位の整数です。営業時間の null は定休日、曜日の省略は未設定として扱います。</p>
+
+      <div class="json-rules">
+        <h3>入力ルール</h3>
+        <ul class="json-file-rules">
+          <li>JSONファイルは1MB以下、一度に100件まで登録できます。</li>
+          <li>全体は <code>{"places": [...]}</code> または場所の配列 <code>[...]</code> にします。</li>
+          <li>必須項目は <code>name</code>、<code>category</code>、<code>latitude</code>、<code>longitude</code> です。</li>
+        </ul>
+
+        <dl class="json-field-rules">
+          <div>
+            <dt><code>name</code> <span class="json-required">必須</span></dt>
+            <dd>文字列。空文字は登録できません。</dd>
+          </div>
+          <div>
+            <dt><code>category</code> <span class="json-required">必須</span></dt>
+            <dd>文字列。下に表示されているDB用の値から指定します。</dd>
+          </div>
+          <div>
+            <dt><code>latitude</code> <span class="json-required">必須</span></dt>
+            <dd>数値。-90以上90以下。</dd>
+          </div>
+          <div>
+            <dt><code>longitude</code> <span class="json-required">必須</span></dt>
+            <dd>数値。-180以上180以下。</dd>
+          </div>
+          <div>
+            <dt><code>description</code> / <code>address</code></dt>
+            <dd>文字列。未設定は省略または <code>null</code>。</dd>
+          </div>
+          <div>
+            <dt><code>opening_hours</code></dt>
+            <dd>曜日ごとのオブジェクト。キーは <code>monday</code> 〜 <code>sunday</code> を使い、各曜日に最大10件の時間帯を登録できます。</dd>
+          </div>
+          <div>
+            <dt><code>open</code> / <code>close</code></dt>
+            <dd><code>HH:MM</code> 形式の時刻。複数時間帯は配列、定休日は <code>null</code>、曜日の省略は未設定です。</dd>
+          </div>
+          <div>
+            <dt><code>price_min</code> / <code>price_max</code></dt>
+            <dd>0以上の整数。未設定は省略または <code>null</code>。最高価格は最低価格以上にします。</dd>
+          </div>
+          <div>
+            <dt><code>website_url</code> / <code>source_url</code></dt>
+            <dd><code>http://</code> または <code>https://</code> から始まるURL。未設定は省略または <code>null</code>。</dd>
+          </div>
+          <div>
+            <dt><code>last_verified_at</code></dt>
+            <dd><code>YYYY-MM-DD</code> 形式の日付。未設定は省略または <code>null</code>。</dd>
+          </div>
+          <div>
+            <dt><code>is_published</code></dt>
+            <dd><code>true</code> または <code>false</code>。省略した場合は <code>false</code>。</dd>
+          </div>
+        </dl>
+      </div>
+
+      <h3 class="json-category-heading">categoryで使える値</h3>
       <div class="category-list category-list-json" aria-label="JSONで使えるカテゴリ">
         {% for value, label in categories %}
           <span>{{ label }} <code>{{ value }}</code></span>

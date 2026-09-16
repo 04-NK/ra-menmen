@@ -42,6 +42,7 @@ WEEKDAYS = (
     ("saturday", "土曜日"),
     ("sunday", "日曜日"),
 )
+WEEKDAY_KEYS = {key for key, _ in WEEKDAYS}
 MAX_JSON_FILE_SIZE = 1_000_000
 MAX_JSON_PLACES = 100
 JAPAN_TIME_ZONE = ZoneInfo("Asia/Tokyo")
@@ -54,20 +55,23 @@ JSON_TEMPLATE = {
             "longitude": 140.0354964,
             "description": "場所の説明",
             "opening_hours": {
-                "monday": {"open": "11:00", "close": "21:00"},
+                "monday": [
+                    {"open": "11:00", "close": "14:00"},
+                    {"open": "17:00", "close": "21:00"},
+                ],
                 "tuesday": None,
-                "wednesday": {"open": "11:00", "close": "21:00"},
-                "thursday": {"open": "11:00", "close": "21:00"},
-                "friday": {"open": "11:00", "close": "21:00"},
-                "saturday": {"open": "10:00", "close": "21:00"},
-                "sunday": {"open": "10:00", "close": "20:00"},
+                "wednesday": [{"open": "11:00", "close": "21:00"}],
+                "thursday": [{"open": "11:00", "close": "21:00"}],
+                "friday": [{"open": "11:00", "close": "21:00"}],
+                "saturday": [{"open": "10:00", "close": "21:00"}],
+                "sunday": [{"open": "10:00", "close": "20:00"}],
             },
             "price_min": 800,
             "price_max": 1200,
             "address": "千葉県千葉市美浜区",
             "website_url": "https://example.com",
             "source_url": "https://example.com/source",
-            "last_verified_at": None,
+            "last_verified_at": "2026-01-15",
             "is_published": True,
         }
     ]
@@ -144,6 +148,27 @@ def parse_clock(value, label):
         raise ValueError(f"{label}を時刻で入力してください") from error
 
 
+def normalize_hours_periods(day_hours, label):
+    if isinstance(day_hours, dict):
+        return [day_hours]
+    if isinstance(day_hours, list):
+        return day_hours
+    raise ValueError(f"{label}の営業時間が正しくありません")
+
+
+def parse_hours_period(period, day_of_week, period_index, label):
+    if not isinstance(period, dict):
+        raise ValueError(f"{label}の営業時間が正しくありません")
+
+    return {
+        "day_of_week": day_of_week,
+        "period_index": period_index,
+        "opens_at": parse_clock(period.get("open"), f"{label}の開店時刻"),
+        "closes_at": parse_clock(period.get("close"), f"{label}の閉店時刻"),
+        "is_closed": False,
+    }
+
+
 def parse_opening_hours(data):
     raw_hours = data.get("opening_hours")
 
@@ -152,8 +177,7 @@ def parse_opening_hours(data):
     if not isinstance(raw_hours, dict):
         raise ValueError("opening_hoursは曜日ごとの形式で入力してください")
 
-    weekday_keys = {key for key, _ in WEEKDAYS}
-    unknown_keys = set(raw_hours) - weekday_keys
+    unknown_keys = set(raw_hours) - WEEKDAY_KEYS
     if unknown_keys:
         raise ValueError(f"営業時間の曜日が正しくありません: {unknown_keys.pop()}")
 
@@ -167,6 +191,7 @@ def parse_opening_hours(data):
             opening_hours.append(
                 {
                     "day_of_week": day_of_week,
+                    "period_index": 0,
                     "opens_at": None,
                     "closes_at": None,
                     "is_closed": True,
@@ -174,21 +199,26 @@ def parse_opening_hours(data):
             )
             continue
 
-        if not isinstance(day_hours, dict):
-            raise ValueError(f"{label}の営業時間が正しくありません")
+        periods = normalize_hours_periods(day_hours, label)
 
-        opens_at = parse_clock(day_hours.get("open"), f"{label}の開店時刻")
-        closes_at = parse_clock(day_hours.get("close"), f"{label}の閉店時刻")
-        opening_hours.append(
-            {
-                "day_of_week": day_of_week,
-                "opens_at": opens_at,
-                "closes_at": closes_at,
-                "is_closed": False,
-            }
-        )
+        if not periods:
+            continue
+        if len(periods) > 10:
+            raise ValueError(f"{label}の営業時間は10件以内で入力してください")
+
+        for period_index, period in enumerate(periods):
+            opening_hours.append(
+                parse_hours_period(period, day_of_week, period_index, label)
+            )
 
     return opening_hours
+
+
+def get_form_hour_values(form, key):
+    return (
+        form.getlist(f"hours_{key}_open"),
+        form.getlist(f"hours_{key}_close"),
+    )
 
 
 def parse_opening_hours_form(form):
@@ -199,25 +229,39 @@ def parse_opening_hours_form(form):
             opening_hours[key] = None
             continue
 
-        opens_at = form.get(f"hours_{key}_open", "").strip()
-        closes_at = form.get(f"hours_{key}_close", "").strip()
-        if not opens_at and not closes_at:
-            continue
+        opens_at_values, closes_at_values = get_form_hour_values(form, key)
+        if len(opens_at_values) != len(closes_at_values):
+            raise ValueError("営業時間の入力形式が正しくありません")
+        periods = []
 
-        opening_hours[key] = {"open": opens_at, "close": closes_at}
+        for opens_at, closes_at in zip(opens_at_values, closes_at_values):
+            opens_at = opens_at.strip()
+            closes_at = closes_at.strip()
+            if not opens_at and not closes_at:
+                continue
+            periods.append({"open": opens_at, "close": closes_at})
+
+        if periods:
+            opening_hours[key] = periods
 
     return opening_hours
 
 
 def opening_hours_fields_from_form(form):
-    return {
-        key: {
-            "open": form.get(f"hours_{key}_open", ""),
-            "close": form.get(f"hours_{key}_close", ""),
+    form_hours = {}
+
+    for key, _ in WEEKDAYS:
+        opens_at_values, closes_at_values = get_form_hour_values(form, key)
+        periods = [
+            {"open": opens_at, "close": closes_at}
+            for opens_at, closes_at in zip(opens_at_values, closes_at_values)
+        ]
+        form_hours[key] = {
+            "periods": periods,
             "closed": form.get(f"hours_{key}_closed") == "on",
         }
-        for key, _ in WEEKDAYS
-    }
+
+    return form_hours
 
 
 def opening_hours_to_form(opening_hours):
@@ -225,11 +269,20 @@ def opening_hours_to_form(opening_hours):
 
     for hours in opening_hours:
         key = WEEKDAYS[hours["day_of_week"]][0]
-        form_hours[key] = {
-            "open": hours.get("opens_at") or "",
-            "close": hours.get("closes_at") or "",
-            "closed": hours["is_closed"],
-        }
+        day_hours = form_hours.setdefault(
+            key,
+            {"periods": [], "closed": False},
+        )
+        if hours["is_closed"]:
+            day_hours["closed"] = True
+            continue
+
+        day_hours["periods"].append(
+            {
+                "open": hours.get("opens_at") or "",
+                "close": hours.get("closes_at") or "",
+            }
+        )
 
     return form_hours
 
@@ -339,6 +392,17 @@ def parse_places_json(upload, category_values):
             raise ValueError(f"{index}件目: {error}") from error
 
     return places
+
+
+def get_category_choices(category_rows):
+    return [
+        (category["value"], category["display_name"])
+        for category in category_rows
+    ]
+
+
+def get_category_values(category_rows):
+    return {category["value"] for category in category_rows}
 
 
 # トップ画面
@@ -475,10 +539,7 @@ def render_admin_page(
         category_rows = []
         list_error = "場所の一覧を取得できませんでした"
 
-    category_choices = [
-        (category["value"], category["display_name"])
-        for category in category_rows
-    ]
+    category_choices = get_category_choices(category_rows)
 
     return render_template(
         "admin_places.html",
@@ -516,8 +577,7 @@ def admin_places():
 
     if request.method == "POST":
         try:
-            categories = get_categories()
-            category_values = {category["value"] for category in categories}
+            category_values = get_category_values(get_categories())
             place = parse_place_form(request.form, category_values)
             place_id = create_place(place)
         except (ValueError, DatabaseNotConfiguredError) as exception:
@@ -585,11 +645,8 @@ def edit_place(place_id):
     if place is None:
         return "場所が見つかりません", 404
 
-    category_choices = [
-        (category["value"], category["display_name"])
-        for category in category_rows
-    ]
-    category_values = {value for value, _ in category_choices}
+    category_choices = get_category_choices(category_rows)
+    category_values = get_category_values(category_rows)
 
     error = None
     form = place
@@ -630,8 +687,7 @@ def edit_place(place_id):
 @admin_required
 def import_places():
     try:
-        categories = get_categories()
-        category_values = {category["value"] for category in categories}
+        category_values = get_category_values(get_categories())
         places_to_create = parse_places_json(
             request.files.get("json_file"),
             category_values,

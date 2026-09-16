@@ -50,16 +50,28 @@ ALTER TABLE public.places
 CREATE TABLE IF NOT EXISTS public.place_opening_hours (
     place_id BIGINT NOT NULL REFERENCES public.places (id) ON DELETE CASCADE,
     day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    period_index SMALLINT NOT NULL DEFAULT 0 CHECK (period_index BETWEEN 0 AND 9),
     opens_at TIME,
     closes_at TIME,
     is_closed BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (place_id, day_of_week),
+    PRIMARY KEY (place_id, day_of_week, period_index),
     CHECK (
         (is_closed = TRUE AND opens_at IS NULL AND closes_at IS NULL)
         OR
         (is_closed = FALSE AND opens_at IS NOT NULL AND closes_at IS NOT NULL)
     )
 );
+
+-- 既存データを残したまま、1つの曜日に複数の営業時間を保存できるようにする
+ALTER TABLE public.place_opening_hours
+    ADD COLUMN IF NOT EXISTS period_index SMALLINT NOT NULL DEFAULT 0;
+
+ALTER TABLE public.place_opening_hours
+    DROP CONSTRAINT IF EXISTS place_opening_hours_pkey;
+
+ALTER TABLE public.place_opening_hours
+    ADD CONSTRAINT place_opening_hours_pkey
+    PRIMARY KEY (place_id, day_of_week, period_index);
 
 CREATE INDEX IF NOT EXISTS places_published_order_idx
     ON public.places (is_published, display_order);

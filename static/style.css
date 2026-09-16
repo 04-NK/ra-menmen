@@ -382,7 +382,7 @@ a:focus-visible {
 /* チーム用の登録画面 */
 .page-admin {
   color: #223b47;
-  background-color: #f3f1eb;
+  background-color: #f4f6f6;
 }
 
 .admin-content {
@@ -433,7 +433,7 @@ a:focus-visible {
   padding: clamp(20px, 5vw, 40px);
   border: 1px solid #d8dedd;
   border-radius: 6px;
-  background-color: #fffdf8;
+  background-color: #fff;
 }
 
 .panel-description {
@@ -478,7 +478,7 @@ a:focus-visible {
   padding: 5px 9px;
   border-radius: 3px;
   color: #52636b;
-  background-color: #eef0ed;
+  background-color: #f4f6f6;
   font-size: 12px;
 }
 
@@ -567,7 +567,7 @@ a:focus-visible {
   padding: 16px;
   border: 1px solid #d8dedd;
   border-radius: 4px;
-  background-color: #f7f7f3;
+  background-color: #f4f6f6;
 }
 
 .hours-bulk-times,
@@ -614,7 +614,9 @@ a:focus-visible {
 }
 
 .hours-preset-buttons button,
-.hours-bulk-actions button {
+.hours-bulk-actions button,
+.add-hours-period,
+.remove-hours-period {
   padding: 7px 10px;
   border: 1px solid #87969c;
   border-radius: 3px;
@@ -639,19 +641,57 @@ a:focus-visible {
 
 .hours-list {
   display: grid;
-  gap: 8px;
+  border-top: 1px solid #d8dedd;
 }
 
 .hours-row {
   display: grid;
-  grid-template-columns: 72px minmax(110px, 1fr) auto minmax(110px, 1fr) 88px;
-  align-items: center;
-  gap: 10px;
+  grid-template-columns: 72px 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #d8dedd;
 }
 
 .hours-day {
+  padding-top: 10px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.hours-day-settings,
+.hours-periods {
+  display: grid;
+  gap: 8px;
+}
+
+.hours-period {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) auto minmax(110px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.hours-separator {
+  color: #52636b;
+}
+
+.hours-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.add-hours-period,
+.remove-hours-period {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.add-hours-period:disabled,
+.remove-hours-period:disabled {
+  color: #899397;
+  cursor: not-allowed;
 }
 
 .hours-closed-label {
@@ -756,17 +796,66 @@ a:focus-visible {
   line-height: 1.6;
 }
 
-.template-note,
 .copy-result {
   min-height: 1.5em;
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: #52636b;
   font-size: 13px;
   line-height: 1.6;
 }
 
-.copy-result {
-  margin-top: 4px;
+.json-rules {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #d8dedd;
+}
+
+.json-file-rules {
+  margin: 10px 0 18px;
+  padding-left: 20px;
+  color: #52636b;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.json-file-rules code,
+.json-field-rules code {
+  color: #315f73;
+}
+
+.json-field-rules {
+  margin: 0;
+  border-top: 1px solid #d8dedd;
+}
+
+.json-field-rules > div {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.8fr);
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #d8dedd;
+}
+
+.json-field-rules dt {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.json-field-rules dd {
+  margin: 0;
+  color: #52636b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.json-required {
+  margin-left: 4px;
+  color: #8a3028;
+  font-size: 11px;
+}
+
+h3.json-category-heading {
+  margin-top: 22px;
 }
 
 .places-heading h2 {
@@ -828,13 +917,13 @@ a:focus-visible {
 .places-table th,
 .places-table td {
   padding: 12px;
-  border-bottom: 1px solid #e2e6e5;
+  border-bottom: 1px solid #d8dedd;
   vertical-align: middle;
 }
 
 .places-table th {
   color: #52636b;
-  background-color: #f5f5f1;
+  background-color: #f4f6f6;
   font-size: 12px;
   white-space: nowrap;
 }
@@ -951,11 +1040,21 @@ a:focus-visible {
   }
 
   .hours-row {
-    grid-template-columns: 68px 1fr auto 1fr;
+    grid-template-columns: 56px 1fr;
+    gap: 8px;
   }
 
-  .hours-closed-label {
-    grid-column: 2 / -1;
+  .hours-period {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .remove-hours-period {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .hours-row-actions {
+    flex-wrap: wrap;
   }
 
   .form-submit {
@@ -965,6 +1064,11 @@ a:focus-visible {
   .json-import-form {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .json-field-rules > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 
   .category-form {
