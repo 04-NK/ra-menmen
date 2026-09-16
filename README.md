@@ -29,6 +29,7 @@
 ## 開発環境
 - **フロントエンド** : html , css , Leaflet , JavaScript
 - **バックエンド** : flask
+- **データベース** : Neon PostgreSQL
 - **タスク管理** : GitHub
 - **マップ** : OpenStreetMap , Leaflet
 - **距離計算** : OSRM
