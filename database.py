@@ -13,7 +13,8 @@ INSERT_PLACE_SQL = """
         latitude,
         longitude,
         description,
-        price_level,
+        price_min,
+        price_max,
         address,
         website_url,
         source_url,
@@ -26,7 +27,8 @@ INSERT_PLACE_SQL = """
         %(latitude)s,
         %(longitude)s,
         %(description)s,
-        %(price_level)s,
+        %(price_min)s,
+        %(price_max)s,
         %(address)s,
         %(website_url)s,
         %(source_url)s,
@@ -34,6 +36,25 @@ INSERT_PLACE_SQL = """
         %(is_published)s
     )
     RETURNING id
+"""
+
+OPENING_HOURS_SELECT_SQL = """
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'day_of_week', hours.day_of_week,
+                    'opens_at', to_char(hours.opens_at, 'HH24:MI'),
+                    'closes_at', to_char(hours.closes_at, 'HH24:MI'),
+                    'is_closed', hours.is_closed
+                )
+                ORDER BY hours.day_of_week
+            )
+            FROM public.place_opening_hours AS hours
+            WHERE hours.place_id = places.id
+        ),
+        '[]'::json
+    ) AS opening_hours
 """
 
 
@@ -50,29 +71,100 @@ def get_database_url():
     return database_url
 
 
-# Neonから公開中のスポットを取得する
-def get_published_places():
-    with psycopg.connect(
+def connect_database():
+    return psycopg.connect(
         get_database_url(),
         connect_timeout=10,
         row_factory=dict_row,
-    ) as connection:
+    )
+
+
+def save_opening_hours(cursor, place_id, opening_hours):
+    if not opening_hours:
+        return
+
+    rows = [
+        {
+            **hours,
+            "place_id": place_id,
+        }
+        for hours in opening_hours
+    ]
+    cursor.executemany(
+        """
+        INSERT INTO public.place_opening_hours (
+            place_id,
+            day_of_week,
+            opens_at,
+            closes_at,
+            is_closed
+        )
+        VALUES (
+            %(place_id)s,
+            %(day_of_week)s,
+            %(opens_at)s,
+            %(closes_at)s,
+            %(is_closed)s
+        )
+        """,
+        rows,
+    )
+
+
+# 場所登録で使えるカテゴリを取得する
+def get_categories():
+    with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
+                SELECT value, display_name
+                FROM public.place_categories
+                ORDER BY display_order, created_at, value
+                """
+            )
+            return cursor.fetchall()
+
+
+# 管理画面からカテゴリを追加する
+def create_category(value, display_name):
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO public.place_categories (value, display_name)
+                VALUES (%s, %s)
+                ON CONFLICT DO NOTHING
+                RETURNING value
+                """,
+                (value, display_name),
+            )
+            return cursor.fetchone() is not None
+
+
+# Neonから公開中のスポットを取得する
+def get_published_places():
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
                 SELECT
-                    id,
-                    name,
-                    category,
-                    latitude,
-                    longitude,
-                    description,
-                    price_level,
-                    address,
-                    website_url
-                FROM public.places
-                WHERE is_published = TRUE
-                ORDER BY display_order, name
+                    places.id,
+                    places.name,
+                    places.category,
+                    COALESCE(categories.display_name, places.category) AS category_name,
+                    places.latitude,
+                    places.longitude,
+                    places.description,
+                    {OPENING_HOURS_SELECT_SQL},
+                    places.price_min,
+                    places.price_max,
+                    places.address,
+                    places.website_url
+                FROM public.places AS places
+                LEFT JOIN public.place_categories AS categories
+                    ON categories.value = places.category
+                WHERE places.is_published = TRUE
+                ORDER BY places.display_order, places.name
                 LIMIT 500
                 """
             )
@@ -81,64 +173,119 @@ def get_published_places():
 
 # チーム用画面に登録済みの場所を表示する
 def get_all_places():
-    with psycopg.connect(
-        get_database_url(),
-        connect_timeout=10,
-        row_factory=dict_row,
-    ) as connection:
+    with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
                 SELECT
-                    id,
-                    name,
-                    category,
-                    latitude,
-                    longitude,
-                    address,
-                    is_published,
-                    created_at
-                FROM public.places
-                ORDER BY created_at DESC, id DESC
+                    places.id,
+                    places.name,
+                    COALESCE(categories.display_name, places.category) AS category_name,
+                    places.address,
+                    places.is_published
+                FROM public.places AS places
+                LEFT JOIN public.place_categories AS categories
+                    ON categories.value = places.category
+                ORDER BY places.created_at DESC, places.id DESC
                 LIMIT 500
                 """
             )
             return cursor.fetchall()
 
 
+# 編集画面に表示する場所を取得する
+def get_place(place_id):
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT
+                    places.id,
+                    places.name,
+                    places.category,
+                    places.latitude,
+                    places.longitude,
+                    places.description,
+                    {OPENING_HOURS_SELECT_SQL},
+                    places.price_min,
+                    places.price_max,
+                    places.address,
+                    places.website_url,
+                    places.source_url,
+                    places.last_verified_at,
+                    places.is_published
+                FROM public.places AS places
+                WHERE places.id = %s
+                """,
+                (place_id,),
+            )
+            return cursor.fetchone()
+
+
 # チーム用画面からスポットを登録する
 def create_place(place):
-    with psycopg.connect(
-        get_database_url(),
-        connect_timeout=10,
-        row_factory=dict_row,
-    ) as connection:
+    with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(INSERT_PLACE_SQL, place)
-            return cursor.fetchone()["id"]
+            place_id = cursor.fetchone()["id"]
+            save_opening_hours(cursor, place_id, place["opening_hours"])
+            return place_id
 
 
 # JSON内の場所を1回の処理でまとめて登録する
 def create_places(places):
-    with psycopg.connect(
-        get_database_url(),
-        connect_timeout=10,
-        row_factory=dict_row,
-    ) as connection:
+    with connect_database() as connection:
         with connection.cursor() as cursor:
             for place in places:
                 cursor.execute(INSERT_PLACE_SQL, place)
+                place_id = cursor.fetchone()["id"]
+                save_opening_hours(cursor, place_id, place["opening_hours"])
 
     return len(places)
 
 
+# 編集画面から場所を更新する
+def update_place(place_id, place):
+    values = {**place, "id": place_id}
+
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE public.places
+                SET
+                    name = %(name)s,
+                    category = %(category)s,
+                    latitude = %(latitude)s,
+                    longitude = %(longitude)s,
+                    description = %(description)s,
+                    price_min = %(price_min)s,
+                    price_max = %(price_max)s,
+                    address = %(address)s,
+                    website_url = %(website_url)s,
+                    source_url = %(source_url)s,
+                    last_verified_at = %(last_verified_at)s,
+                    is_published = %(is_published)s
+                WHERE id = %(id)s
+                RETURNING id
+                """,
+                values,
+            )
+            updated = cursor.fetchone()
+            if not updated:
+                return None
+
+            cursor.execute(
+                "DELETE FROM public.place_opening_hours WHERE place_id = %s",
+                (place_id,),
+            )
+            save_opening_hours(cursor, place_id, place["opening_hours"])
+            return updated["id"]
+
+
 # 一覧で選択された場所をまとめて削除する
 def delete_places(place_ids):
-    with psycopg.connect(
-        get_database_url(),
-        connect_timeout=10,
-        row_factory=dict_row,
-    ) as connection:
+    with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
                 "DELETE FROM public.places WHERE id = ANY(%s)",

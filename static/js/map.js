@@ -5,6 +5,7 @@ const initialLocation = {
   lng: 140.0354964,
   zoom: 13,
 };
+const weekdayLabels = ["月", "火", "水", "木", "金", "土", "日"];
 
 const map = L.map("map").setView(
   [initialLocation.lat, initialLocation.lng],
@@ -30,13 +31,47 @@ function createPlacePopup(place) {
   const category = document.createElement("p");
 
   name.textContent = place.name;
-  category.textContent = place.category;
+  category.textContent = place.category_name || place.category;
   popup.append(name, category);
 
   if (place.description) {
     const description = document.createElement("p");
     description.textContent = place.description;
     popup.append(description);
+  }
+
+  if (place.opening_hours.length) {
+    const openingHours = document.createElement("p");
+    const schedule = place.opening_hours.map((hours) => {
+      const day = weekdayLabels[hours.day_of_week];
+
+      if (hours.is_closed) {
+        return `${day} 定休`;
+      }
+
+      return `${day} ${hours.opens_at}〜${hours.closes_at}`;
+    });
+
+    openingHours.textContent = `営業時間：${schedule.join(" / ")}`;
+    popup.append(openingHours);
+  }
+
+  if (place.price_min !== null || place.price_max !== null) {
+    const price = document.createElement("p");
+    const minimum = place.price_min?.toLocaleString("ja-JP");
+    const maximum = place.price_max?.toLocaleString("ja-JP");
+
+    if (place.price_min === place.price_max) {
+      price.textContent = `価格の目安：${minimum}円`;
+    } else if (place.price_min === null) {
+      price.textContent = `価格の目安：〜${maximum}円`;
+    } else if (place.price_max === null) {
+      price.textContent = `価格の目安：${minimum}円〜`;
+    } else {
+      price.textContent = `価格の目安：${minimum}〜${maximum}円`;
+    }
+
+    popup.append(price);
   }
 
   return popup;

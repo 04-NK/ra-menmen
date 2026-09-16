@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}場所を編集 | ヨリタビ{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+
+{% block content %}
+  <main class="admin-content admin-content-edit">
+    <a class="back-link" href="{{ url_for('admin_places') }}">← 場所の一覧へ戻る</a>
+
+    <div class="admin-title-row">
+      <div>
+        <h1>場所を編集</h1>
+        <p class="admin-lead">登録済みの情報を修正します。</p>
+      </div>
+    </div>
+
+    <!-- 登録済みの場所を編集するフォーム -->
+    <section class="admin-panel">
+      {% if error %}
+        <p class="form-message form-message-error">{{ error }}</p>
+      {% endif %}
+
+      <form class="place-form" method="post">
+        {% include "_place_form_fields.html" %}
+        <button class="form-submit" type="submit">変更を保存する</button>
+      </form>
+    </section>
+  </main>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

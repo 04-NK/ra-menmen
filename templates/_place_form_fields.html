@@ -1,0 +1,118 @@
+<div class="form-grid">
+  <label class="form-wide">
+    <span>場所の名前 <span class="required-mark">*</span></span>
+    <input type="text" name="name" value="{{ form.get('name', '') }}" required>
+  </label>
+
+  <label>
+    <span>カテゴリ <span class="required-mark">*</span></span>
+    <select name="category" required>
+      <option value="">選択してください</option>
+      {% for value, label in categories %}
+        <option value="{{ value }}" {% if form.get('category') == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>
+    <span>最低価格（円）</span>
+    <input type="number" name="price_min" value="{{ form.get('price_min', '') if form.get('price_min') is not none else '' }}" min="0" step="1" inputmode="numeric" placeholder="例：800">
+  </label>
+
+  <label>
+    <span>最高価格（円）</span>
+    <input type="number" name="price_max" value="{{ form.get('price_max', '') if form.get('price_max') is not none else '' }}" min="0" step="1" inputmode="numeric" placeholder="例：1200">
+  </label>
+
+  <label>
+    <span>緯度 <span class="required-mark">*</span></span>
+    <input type="number" name="latitude" value="{{ form.get('latitude', '') }}" min="-90" max="90" step="any" required>
+  </label>
+
+  <label>
+    <span>経度 <span class="required-mark">*</span></span>
+    <input type="number" name="longitude" value="{{ form.get('longitude', '') }}" min="-180" max="180" step="any" required>
+  </label>
+
+  <fieldset class="hours-fieldset form-wide">
+    <legend>営業時間</legend>
+    <p>営業する曜日は開店・閉店時刻を入力し、休みの曜日は定休日を選びます。</p>
+
+    <div class="hours-bulk">
+      <strong>まとめて設定</strong>
+      <div class="hours-bulk-times">
+        <input type="time" id="bulk-open-time" aria-label="まとめて設定する開店時刻">
+        <span>〜</span>
+        <input type="time" id="bulk-close-time" aria-label="まとめて設定する閉店時刻">
+      </div>
+
+      <div class="hours-bulk-days">
+        {% for key, label in weekdays %}
+          <label>
+            <input class="bulk-day" type="checkbox" value="{{ key }}" checked>
+            <span>{{ label | replace('曜日', '') }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+      <div class="hours-preset-buttons">
+        <button type="button" data-days="all">全曜日</button>
+        <button type="button" data-days="weekday">平日</button>
+        <button type="button" data-days="weekend">土日</button>
+        <button type="button" data-days="none">選択解除</button>
+      </div>
+
+      <div class="hours-bulk-actions">
+        <button type="button" id="apply-hours">選んだ曜日に時刻を反映</button>
+        <button type="button" id="apply-closed">選んだ曜日を定休日にする</button>
+      </div>
+      <p class="hours-bulk-result" id="hours-bulk-result" aria-live="polite"></p>
+    </div>
+
+    <div class="hours-list">
+      {% for key, label in weekdays %}
+        {% set hours = opening_hours_form.get(key, {}) %}
+        <div class="hours-row" data-day="{{ key }}">
+          <span class="hours-day">{{ label }}</span>
+          <input type="time" name="hours_{{ key }}_open" value="{{ hours.get('open', '') }}" aria-label="{{ label }}の開店時刻" {% if hours.get('closed') %}disabled{% endif %}>
+          <span>〜</span>
+          <input type="time" name="hours_{{ key }}_close" value="{{ hours.get('close', '') }}" aria-label="{{ label }}の閉店時刻" {% if hours.get('closed') %}disabled{% endif %}>
+          <label class="hours-closed-label">
+            <input class="hours-closed" type="checkbox" name="hours_{{ key }}_closed" {% if hours.get('closed') %}checked{% endif %}>
+            <span>定休日</span>
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <label class="form-wide">
+    <span>説明</span>
+    <textarea name="description" rows="4">{{ form.get('description', '') or '' }}</textarea>
+  </label>
+
+  <label class="form-wide">
+    <span>住所</span>
+    <input type="text" name="address" value="{{ form.get('address', '') or '' }}">
+  </label>
+
+  <label class="form-wide">
+    <span>公式サイト</span>
+    <input type="url" name="website_url" value="{{ form.get('website_url', '') or '' }}" placeholder="https://">
+  </label>
+
+  <label class="form-wide">
+    <span>情報の確認元</span>
+    <input type="url" name="source_url" value="{{ form.get('source_url', '') or '' }}" placeholder="https://">
+  </label>
+
+  <label>
+    <span>確認日</span>
+    <input type="date" name="last_verified_at" value="{{ form.get('last_verified_at', '') or '' }}">
+  </label>
+
+  <label class="checkbox-label">
+    <input type="checkbox" name="is_published" {% if is_published_checked %}checked{% endif %}>
+    <span>地図に表示する</span>
+  </label>
+</div>

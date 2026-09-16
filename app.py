@@ -1,7 +1,8 @@
 import hmac
 import json
 import os
-from datetime import date
+import re
+from datetime import date, time
 from functools import wraps
 from urllib.parse import urlparse
 
@@ -18,24 +19,27 @@ from flask import (
 
 from database import (
     DatabaseNotConfiguredError,
+    create_category,
     create_place,
     create_places,
     delete_places,
     get_all_places,
+    get_categories,
+    get_place,
     get_published_places,
+    update_place,
 )
 
 app = Flask(__name__)
 
-CATEGORIES = (
-    ("restaurant", "レストラン"),
-    ("cafe", "カフェ"),
-    ("fast_food", "軽食"),
-    ("shop", "お店"),
-    ("tourism", "観光地"),
-    ("park", "公園"),
-    ("museum", "博物館・美術館"),
-    ("other", "その他"),
+WEEKDAYS = (
+    ("monday", "月曜日"),
+    ("tuesday", "火曜日"),
+    ("wednesday", "水曜日"),
+    ("thursday", "木曜日"),
+    ("friday", "金曜日"),
+    ("saturday", "土曜日"),
+    ("sunday", "日曜日"),
 )
 MAX_JSON_FILE_SIZE = 1_000_000
 MAX_JSON_PLACES = 100
@@ -47,7 +51,17 @@ JSON_TEMPLATE = {
             "latitude": 35.6476856,
             "longitude": 140.0354964,
             "description": "場所の説明",
-            "price_level": 2,
+            "opening_hours": {
+                "monday": {"open": "11:00", "close": "21:00"},
+                "tuesday": None,
+                "wednesday": {"open": "11:00", "close": "21:00"},
+                "thursday": {"open": "11:00", "close": "21:00"},
+                "friday": {"open": "11:00", "close": "21:00"},
+                "saturday": {"open": "10:00", "close": "21:00"},
+                "sunday": {"open": "10:00", "close": "20:00"},
+            },
+            "price_min": 800,
+            "price_max": 1200,
             "address": "千葉県千葉市美浜区",
             "website_url": "https://example.com",
             "source_url": "https://example.com/source",
@@ -97,13 +111,133 @@ def get_text(data, field):
     return value.strip()
 
 
-def parse_place_data(data):
+def get_optional_price(data, field, label):
+    value = data.get(field)
+
+    if isinstance(value, str):
+        value = value.strip()
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValueError(f"{label}は0以上の整数で入力してください")
+
+    try:
+        price = int(value)
+    except ValueError as error:
+        raise ValueError(f"{label}は0以上の整数で入力してください") from error
+
+    if price < 0:
+        raise ValueError(f"{label}は0以上の整数で入力してください")
+
+    return price
+
+
+def parse_clock(value, label):
+    if not isinstance(value, str):
+        raise ValueError(f"{label}を時刻で入力してください")
+
+    try:
+        return time.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError(f"{label}を時刻で入力してください") from error
+
+
+def parse_opening_hours(data):
+    raw_hours = data.get("opening_hours")
+
+    if raw_hours is None:
+        return []
+    if not isinstance(raw_hours, dict):
+        raise ValueError("opening_hoursは曜日ごとの形式で入力してください")
+
+    weekday_keys = {key for key, _ in WEEKDAYS}
+    unknown_keys = set(raw_hours) - weekday_keys
+    if unknown_keys:
+        raise ValueError(f"営業時間の曜日が正しくありません: {unknown_keys.pop()}")
+
+    opening_hours = []
+    for day_of_week, (key, label) in enumerate(WEEKDAYS):
+        if key not in raw_hours:
+            continue
+
+        day_hours = raw_hours[key]
+        if day_hours is None:
+            opening_hours.append(
+                {
+                    "day_of_week": day_of_week,
+                    "opens_at": None,
+                    "closes_at": None,
+                    "is_closed": True,
+                }
+            )
+            continue
+
+        if not isinstance(day_hours, dict):
+            raise ValueError(f"{label}の営業時間が正しくありません")
+
+        opens_at = parse_clock(day_hours.get("open"), f"{label}の開店時刻")
+        closes_at = parse_clock(day_hours.get("close"), f"{label}の閉店時刻")
+        opening_hours.append(
+            {
+                "day_of_week": day_of_week,
+                "opens_at": opens_at,
+                "closes_at": closes_at,
+                "is_closed": False,
+            }
+        )
+
+    return opening_hours
+
+
+def parse_opening_hours_form(form):
+    opening_hours = {}
+
+    for key, _ in WEEKDAYS:
+        if form.get(f"hours_{key}_closed") == "on":
+            opening_hours[key] = None
+            continue
+
+        opens_at = form.get(f"hours_{key}_open", "").strip()
+        closes_at = form.get(f"hours_{key}_close", "").strip()
+        if not opens_at and not closes_at:
+            continue
+
+        opening_hours[key] = {"open": opens_at, "close": closes_at}
+
+    return opening_hours
+
+
+def opening_hours_fields_from_form(form):
+    return {
+        key: {
+            "open": form.get(f"hours_{key}_open", ""),
+            "close": form.get(f"hours_{key}_close", ""),
+            "closed": form.get(f"hours_{key}_closed") == "on",
+        }
+        for key, _ in WEEKDAYS
+    }
+
+
+def opening_hours_to_form(opening_hours):
+    form_hours = {}
+
+    for hours in opening_hours:
+        key = WEEKDAYS[hours["day_of_week"]][0]
+        form_hours[key] = {
+            "open": hours.get("opens_at") or "",
+            "close": hours.get("closes_at") or "",
+            "closed": hours["is_closed"],
+        }
+
+    return form_hours
+
+
+def parse_place_data(data, category_values):
     if not isinstance(data, dict):
         raise ValueError("場所の情報はJSONオブジェクトで入力してください")
 
     name = get_text(data, "name")
     category = get_text(data, "category")
-    category_values = {value for value, _ in CATEGORIES}
 
     if not name:
         raise ValueError("場所の名前を入力してください")
@@ -123,22 +257,10 @@ def parse_place_data(data):
     if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
         raise ValueError("緯度または経度の範囲が正しくありません")
 
-    try:
-        price_level_value = data.get("price_level")
-        if isinstance(price_level_value, bool) or not isinstance(
-            price_level_value, (int, str, type(None))
-        ):
-            raise ValueError
-        price_level = (
-            int(price_level_value)
-            if price_level_value not in (None, "")
-            else None
-        )
-    except (TypeError, ValueError) as error:
-        raise ValueError("価格帯を選択してください") from error
-
-    if price_level not in {None, 1, 2, 3}:
-        raise ValueError("価格帯を選択してください")
+    price_min = get_optional_price(data, "price_min", "最低価格")
+    price_max = get_optional_price(data, "price_max", "最高価格")
+    if price_min is not None and price_max is not None and price_min > price_max:
+        raise ValueError("最高価格は最低価格以上で入力してください")
 
     try:
         verified_value = get_text(data, "last_verified_at")
@@ -168,7 +290,9 @@ def parse_place_data(data):
         "latitude": latitude,
         "longitude": longitude,
         "description": get_text(data, "description") or None,
-        "price_level": price_level,
+        "opening_hours": parse_opening_hours(data),
+        "price_min": price_min,
+        "price_max": price_max,
         "address": get_text(data, "address") or None,
         "website_url": website_url,
         "source_url": source_url,
@@ -177,13 +301,14 @@ def parse_place_data(data):
     }
 
 
-def parse_place_form(form):
+def parse_place_form(form, category_values):
     data = form.to_dict()
     data["is_published"] = form.get("is_published") == "on"
-    return parse_place_data(data)
+    data["opening_hours"] = parse_opening_hours_form(form)
+    return parse_place_data(data, category_values)
 
 
-def parse_places_json(upload):
+def parse_places_json(upload, category_values):
     if not upload or not upload.filename:
         raise ValueError("JSONファイルを選択してください")
 
@@ -207,7 +332,7 @@ def parse_places_json(upload):
     places = []
     for index, raw_place in enumerate(raw_places, start=1):
         try:
-            places.append(parse_place_data(raw_place))
+            places.append(parse_place_data(raw_place, category_values))
         except ValueError as error:
             raise ValueError(f"{index}件目: {error}") from error
 
@@ -245,6 +370,8 @@ def render_admin_page(
     error=None,
     import_error=None,
     delete_error=None,
+    category_error=None,
+    category_form=None,
     form=None,
     is_post=False,
 ):
@@ -252,18 +379,28 @@ def render_admin_page(
 
     try:
         registered_places = get_all_places()
+        category_rows = get_categories()
     except DatabaseNotConfiguredError:
         registered_places = []
+        category_rows = []
         list_error = "データベースが設定されていません"
     except psycopg.Error:
         app.logger.exception("場所の一覧を取得できませんでした")
         registered_places = []
+        category_rows = []
         list_error = "場所の一覧を取得できませんでした"
+
+    category_choices = [
+        (category["value"], category["display_name"])
+        for category in category_rows
+    ]
 
     return render_template(
         "admin_places.html",
-        categories=CATEGORIES,
-        category_labels=dict(CATEGORIES),
+        categories=category_choices,
+        category_created=request.args.get("category_created") is not None,
+        category_error=category_error,
+        category_form=category_form or {},
         delete_error=delete_error,
         error=error,
         form=form or {},
@@ -271,10 +408,18 @@ def render_admin_page(
         imported_count=request.args.get("imported", type=int),
         import_error=import_error,
         is_post=is_post,
+        is_published_checked=(
+            not is_post or (form is not None and form.get("is_published") == "on")
+        ),
         json_template=json.dumps(JSON_TEMPLATE, ensure_ascii=False, indent=2),
         list_error=list_error,
+        opening_hours_form=(
+            opening_hours_fields_from_form(form) if is_post and form is not None else {}
+        ),
         places=registered_places,
         success=request.args.get("created") is not None,
+        updated=request.args.get("updated") is not None,
+        weekdays=WEEKDAYS,
     )
 
 
@@ -286,7 +431,9 @@ def admin_places():
 
     if request.method == "POST":
         try:
-            place = parse_place_form(request.form)
+            categories = get_categories()
+            category_values = {category["value"] for category in categories}
+            place = parse_place_form(request.form, category_values)
             place_id = create_place(place)
         except (ValueError, DatabaseNotConfiguredError) as exception:
             error = str(exception) or "データベースが設定されていません"
@@ -303,12 +450,107 @@ def admin_places():
     )
 
 
+# 場所登録で使うカテゴリを追加する
+@app.post("/admin/categories")
+@admin_required
+def add_category():
+    value = request.form.get("value", "").strip()
+    display_name = request.form.get("display_name", "").strip()
+
+    try:
+        if not display_name:
+            raise ValueError("表示名を入力してください")
+        if len(display_name) > 50:
+            raise ValueError("表示名は50文字以内で入力してください")
+        if not re.fullmatch(r"[a-z0-9_-]{1,40}", value):
+            raise ValueError(
+                "DB用の値は40文字以内の半角英小文字・数字・_・-で入力してください"
+            )
+        if not create_category(value, display_name):
+            raise ValueError("同じ表示名またはDB用の値が登録されています")
+    except (ValueError, DatabaseNotConfiguredError) as exception:
+        error = str(exception) or "データベースが設定されていません"
+        return render_admin_page(
+            category_error=error,
+            category_form=request.form,
+        )
+    except psycopg.Error:
+        app.logger.exception("カテゴリを追加できませんでした")
+        return render_admin_page(
+            category_error="カテゴリを追加できませんでした",
+            category_form=request.form,
+        )
+
+    return redirect(url_for("admin_places", category_created=value))
+
+
+# 登録済みの場所を編集する
+@app.route("/admin/places/<int:place_id>/edit", methods=["GET", "POST"])
+@admin_required
+def edit_place(place_id):
+    try:
+        place = get_place(place_id)
+        category_rows = get_categories()
+    except DatabaseNotConfiguredError:
+        return "データベースが設定されていません", 503
+    except psycopg.Error:
+        app.logger.exception("編集する場所を取得できませんでした")
+        return "編集する場所を取得できませんでした", 503
+
+    if place is None:
+        return "場所が見つかりません", 404
+
+    category_choices = [
+        (category["value"], category["display_name"])
+        for category in category_rows
+    ]
+    category_values = {value for value, _ in category_choices}
+
+    error = None
+    form = place
+    is_published_checked = place["is_published"]
+    opening_hours_form = opening_hours_to_form(place["opening_hours"])
+
+    if request.method == "POST":
+        form = request.form
+        is_published_checked = request.form.get("is_published") == "on"
+        opening_hours_form = opening_hours_fields_from_form(request.form)
+
+        try:
+            updated_place = parse_place_form(request.form, category_values)
+            updated_id = update_place(place_id, updated_place)
+        except (ValueError, DatabaseNotConfiguredError) as exception:
+            error = str(exception) or "データベースが設定されていません"
+        except psycopg.Error:
+            app.logger.exception("場所を更新できませんでした")
+            error = "場所を更新できませんでした"
+        else:
+            if updated_id is None:
+                return "場所が見つかりません", 404
+            return redirect(url_for("admin_places", updated=updated_id))
+
+    return render_template(
+        "edit_place.html",
+        categories=category_choices,
+        error=error,
+        form=form,
+        is_published_checked=is_published_checked,
+        opening_hours_form=opening_hours_form,
+        weekdays=WEEKDAYS,
+    )
+
+
 # JSONファイルから場所をまとめて登録する
 @app.post("/admin/places/import")
 @admin_required
 def import_places():
     try:
-        places_to_create = parse_places_json(request.files.get("json_file"))
+        categories = get_categories()
+        category_values = {category["value"] for category in categories}
+        places_to_create = parse_places_json(
+            request.files.get("json_file"),
+            category_values,
+        )
         imported_count = create_places(places_to_create)
     except (ValueError, DatabaseNotConfiguredError) as exception:
         error = str(exception) or "データベースが設定されていません"

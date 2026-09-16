@@ -110,6 +110,22 @@ a:focus-visible {
   text-decoration: underline;
 }
 
+.back-link,
+.edit-link {
+  color: #315f73;
+  text-underline-offset: 3px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.edit-link {
+  white-space: nowrap;
+}
+
 .app-content {
   flex: 1;
   min-height: 0;
@@ -138,6 +154,10 @@ a:focus-visible {
   width: min(100% - 32px, 960px);
   margin: 0 auto;
   padding: 40px 0 64px;
+}
+
+.admin-content-edit {
+  max-width: 760px;
 }
 
 .admin-title-row {
@@ -188,6 +208,54 @@ a:focus-visible {
   line-height: 1.7;
 }
 
+.category-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 16px;
+}
+
+.category-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.category-form input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #aeb9bd;
+  border-radius: 3px;
+  color: #223b47;
+  background-color: #fff;
+  font: inherit;
+}
+
+.category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.category-list span {
+  padding: 5px 9px;
+  border-radius: 3px;
+  color: #52636b;
+  background-color: #eef0ed;
+  font-size: 12px;
+}
+
+.category-list code {
+  margin-left: 4px;
+  color: #315f73;
+}
+
+.category-list-json {
+  margin-top: 10px;
+}
+
 .place-form {
   display: grid;
   gap: 24px;
@@ -199,7 +267,7 @@ a:focus-visible {
   gap: 20px;
 }
 
-.place-form label:not(.checkbox-label) {
+.place-form label:not(.checkbox-label):not(.hours-closed-label) {
   display: grid;
   gap: 8px;
 }
@@ -207,6 +275,10 @@ a:focus-visible {
 .place-form label > span {
   font-size: 14px;
   font-weight: 600;
+}
+
+.required-mark {
+  color: #b8322a;
 }
 
 .place-form input,
@@ -234,6 +306,130 @@ a:focus-visible {
 
 .form-wide {
   grid-column: 1 / -1;
+}
+
+.hours-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.hours-fieldset legend {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hours-fieldset > p {
+  margin: 6px 0 12px;
+  color: #52636b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.hours-bulk {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #d8dedd;
+  border-radius: 4px;
+  background-color: #f7f7f3;
+}
+
+.hours-bulk-times,
+.hours-bulk-days,
+.hours-preset-buttons,
+.hours-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.hours-bulk-times {
+  margin-top: 10px;
+}
+
+.hours-bulk-times input {
+  width: min(180px, calc(50% - 20px));
+}
+
+.hours-bulk-days {
+  margin-top: 12px;
+}
+
+.hours-bulk-days label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid #c9d0d2;
+  border-radius: 3px;
+  background-color: #fff;
+  font-size: 13px;
+}
+
+.hours-bulk-days input {
+  width: 16px;
+  height: 16px;
+}
+
+.hours-preset-buttons,
+.hours-bulk-actions {
+  margin-top: 10px;
+}
+
+.hours-preset-buttons button,
+.hours-bulk-actions button {
+  padding: 7px 10px;
+  border: 1px solid #87969c;
+  border-radius: 3px;
+  color: #223b47;
+  background-color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.hours-bulk-actions button:first-child {
+  color: #fff;
+  background-color: #315f73;
+}
+
+.hours-bulk-result {
+  min-height: 1.5em;
+  margin: 8px 0 0;
+  color: #52636b;
+  font-size: 13px;
+}
+
+.hours-list {
+  display: grid;
+  gap: 8px;
+}
+
+.hours-row {
+  display: grid;
+  grid-template-columns: 72px minmax(110px, 1fr) auto minmax(110px, 1fr) 88px;
+  align-items: center;
+  gap: 10px;
+}
+
+.hours-day {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hours-closed-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.hours-closed-label input {
+  width: 17px;
+  height: 17px;
 }
 
 .checkbox-label {
@@ -417,11 +613,6 @@ a:focus-visible {
   text-align: center;
 }
 
-.coordinates {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
 .place-status {
   display: inline-block;
   padding: 3px 7px;
@@ -488,6 +679,14 @@ a:focus-visible {
     grid-column: auto;
   }
 
+  .hours-row {
+    grid-template-columns: 68px 1fr auto 1fr;
+  }
+
+  .hours-closed-label {
+    grid-column: 2 / -1;
+  }
+
   .form-submit {
     width: 100%;
   }
@@ -495,6 +694,10 @@ a:focus-visible {
   .json-import-form {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .category-form {
+    grid-template-columns: 1fr;
   }
 
   .places-actions {
