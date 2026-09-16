@@ -7,3 +7,5 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 // マーカーやルートの描画は、ここから追加する。
+var marker = L.marker([35.64768559999999, 140.0354964134909]).addTo(map);
+marker.bindPopup("幕張メッセ").openPopup();
