@@ -7,6 +7,7 @@
   <title>{% block title %}ヨリタビ{% endblock %}</title>
   <meta name="description" content="ライブやフェスの前後に、近くで立ち寄れる観光地やお店を探す。ヨリタビは、遠征先での寄り道を手伝うサービスです。">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block styles %}{% endblock %}
   {% block head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
