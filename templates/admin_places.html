@@ -10,47 +10,13 @@
 {% block content %}
   <main class="admin-content">
     <div class="admin-title-row">
-      <div>
-        <h1>場所の管理</h1>
-        <p class="admin-lead">地図に載せるお店や観光地を登録します。</p>
-      </div>
+      <h1>場所の管理</h1>
     </div>
 
-    <!-- 場所登録で使うカテゴリを追加する -->
-    <section class="admin-panel category-panel">
-      <h2>カテゴリを追加</h2>
-      <p class="panel-description">画面に表示する名前と、コードやJSONで使う値を登録します。</p>
+    {% include "_category_icon_symbols.html" %}
 
-      {% if category_created %}
-        <p class="form-message form-message-success">カテゴリを追加しました。</p>
-      {% endif %}
-
-      {% if category_error %}
-        <p class="form-message form-message-error">{{ category_error }}</p>
-      {% endif %}
-
-      <form class="category-form" action="{{ url_for('add_category') }}" method="post">
-        <label>
-          <span>表示名</span>
-          <input type="text" name="display_name" value="{{ category_form.get('display_name', '') }}" placeholder="例：ラーメン" maxlength="50" required>
-        </label>
-        <label>
-          <span>DB用の値</span>
-          <input type="text" name="value" value="{{ category_form.get('value', '') }}" placeholder="例：ramen" maxlength="40" pattern="[a-z0-9_-]+" required>
-        </label>
-        <button class="form-submit" type="submit">カテゴリを追加</button>
-      </form>
-
-      <div class="category-list" aria-label="登録済みカテゴリ">
-        {% for value, label in categories %}
-          <span>{{ label }} <code>{{ value }}</code></span>
-        {% endfor %}
-      </div>
-    </section>
-
-    <!-- 1件ずつ登録するフォーム -->
     <section class="admin-panel">
-      <h2>1件ずつ追加</h2>
+      <h2>場所を追加</h2>
 
       {% if success %}
         <p class="form-message form-message-success">場所を登録しました。</p>
@@ -66,100 +32,192 @@
         <button class="form-submit" type="submit">登録する</button>
       </form>
     </section>
+    <details class="admin-panel admin-disclosure category-panel" {% if category_created or category_updated or category_error %}open{% endif %}>
+      <summary>
+        <span>カテゴリ管理</span>
+        <small>追加・表示設定</small>
+      </summary>
+      <div class="admin-disclosure-body">
+        {% if category_created %}
+          <p class="form-message form-message-success">カテゴリを追加しました。</p>
+        {% endif %}
 
-    <!-- JSONファイルからまとめて登録する -->
-    <section class="admin-panel">
-      <h2>JSONから追加</h2>
-      <p class="panel-description">テンプレートに合わせたJSONファイルを選択してください。一度に100件まで登録できます。</p>
+        {% if category_updated %}
+          <p class="form-message form-message-success">カテゴリを更新しました。</p>
+        {% endif %}
 
-      {% if imported_count %}
-        <p class="form-message form-message-success">{{ imported_count }}件の場所を登録しました。</p>
-      {% endif %}
+        {% if category_error %}
+          <p class="form-message form-message-error">{{ category_error }}</p>
+        {% endif %}
 
-      {% if import_error %}
-        <p class="form-message form-message-error">{{ import_error }}</p>
-      {% endif %}
+        <h3>新しいカテゴリ</h3>
+        <form class="category-form category-settings-form" action="{{ url_for('add_category') }}" method="post">
+          <div class="category-style-preview" style="--category-color: {{ category_form.get('color', '#315f73') }}">
+            <svg class="category-icon" aria-hidden="true"><use href="#category-icon-{{ category_form.get('icon_name', 'place') }}"></use></svg>
+          </div>
+          <label>
+            <span>表示名</span>
+            <input type="text" name="display_name" value="{{ category_form.get('display_name', '') }}" placeholder="例：ラーメン" maxlength="50" required>
+          </label>
+          <label>
+            <span>DB用の値</span>
+            <input type="text" name="value" value="{{ category_form.get('value', '') }}" placeholder="例：ramen" maxlength="40" pattern="[a-z0-9_-]+" required>
+          </label>
+          <label>
+            <span>色</span>
+            <input class="category-color-input" type="color" name="color" value="{{ category_form.get('color', '#315f73') }}">
+          </label>
+          <label>
+            <span>アイコン</span>
+            <select class="category-icon-select" name="icon_name">
+              {% for value, label in category_icons %}
+                <option value="{{ value }}" {% if category_form.get('icon_name', 'place') == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="form-submit" type="submit">追加</button>
+        </form>
 
-      <form class="json-import-form" action="{{ url_for('import_places') }}" method="post" enctype="multipart/form-data">
-        <label>
-          <span>JSONファイル</span>
-          <input type="file" name="json_file" accept=".json,application/json" required>
-        </label>
-        <button class="form-submit" type="submit">JSONから登録する</button>
-      </form>
-
-      <div class="json-template-heading">
-        <h3>JSONテンプレート</h3>
-        <button class="copy-button" id="copy-json-template" type="button">コピー</button>
+        <h3 class="category-list-heading">カテゴリ一覧</h3>
+        <div class="category-editor-list">
+          {% for category in category_rows %}
+            <form class="category-editor-row category-settings-form" action="{{ url_for('edit_category', value=category.value) }}" method="post">
+              <div class="category-style-preview" style="--category-color: {{ category.color }}">
+                <svg class="category-icon" aria-hidden="true"><use href="#category-icon-{{ category.icon_name }}"></use></svg>
+              </div>
+              <label>
+                <span>表示名</span>
+                <input type="text" name="display_name" value="{{ category.display_name }}" maxlength="50" required>
+              </label>
+              <div class="category-code">
+                <span>DB用の値</span>
+                <code>{{ category.value }}</code>
+              </div>
+              <label>
+                <span>色</span>
+                <input class="category-color-input" type="color" name="color" value="{{ category.color }}">
+              </label>
+              <label>
+                <span>アイコン</span>
+                <select class="category-icon-select" name="icon_name">
+                  {% for value, label in category_icons %}
+                    <option value="{{ value }}" {% if category.icon_name == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <button class="copy-button" type="submit">保存</button>
+            </form>
+          {% endfor %}
+        </div>
       </div>
-      <pre class="json-template" id="json-template"><code>{{ json_template }}</code></pre>
+    </details>
 
-      <div class="json-rules">
-        <h3>入力ルール</h3>
-        <ul class="json-file-rules">
-          <li>JSONファイルは1MB以下、一度に100件まで登録できます。</li>
-          <li>全体は <code>{"places": [...]}</code> または場所の配列 <code>[...]</code> にします。</li>
-          <li>必須項目は <code>name</code>、<code>category</code>、<code>latitude</code>、<code>longitude</code> です。</li>
-        </ul>
+    <details class="admin-panel admin-disclosure" {% if imported_count or import_error %}open{% endif %}>
+      <summary>
+        <span>JSONから追加</span>
+        <small>一括登録</small>
+      </summary>
+      <div class="admin-disclosure-body">
+        {% if imported_count %}
+          <p class="form-message form-message-success">{{ imported_count }}件の場所を登録しました。</p>
+        {% endif %}
 
-        <dl class="json-field-rules">
-          <div>
-            <dt><code>name</code> <span class="json-required">必須</span></dt>
-            <dd>文字列。空文字は登録できません。</dd>
-          </div>
-          <div>
-            <dt><code>category</code> <span class="json-required">必須</span></dt>
-            <dd>文字列。下に表示されているDB用の値から指定します。</dd>
-          </div>
-          <div>
-            <dt><code>latitude</code> <span class="json-required">必須</span></dt>
-            <dd>数値。-90以上90以下。</dd>
-          </div>
-          <div>
-            <dt><code>longitude</code> <span class="json-required">必須</span></dt>
-            <dd>数値。-180以上180以下。</dd>
-          </div>
-          <div>
-            <dt><code>description</code> / <code>address</code></dt>
-            <dd>文字列。未設定は省略または <code>null</code>。</dd>
-          </div>
-          <div>
-            <dt><code>opening_hours</code></dt>
-            <dd>曜日ごとのオブジェクト。キーは <code>monday</code> 〜 <code>sunday</code> を使い、各曜日に最大10件の時間帯を登録できます。</dd>
-          </div>
-          <div>
-            <dt><code>open</code> / <code>close</code></dt>
-            <dd><code>HH:MM</code> 形式の時刻。複数時間帯は配列、定休日は <code>null</code>、曜日の省略は未設定です。</dd>
-          </div>
-          <div>
-            <dt><code>price_min</code> / <code>price_max</code></dt>
-            <dd>0以上の整数。未設定は省略または <code>null</code>。最高価格は最低価格以上にします。</dd>
-          </div>
-          <div>
-            <dt><code>website_url</code> / <code>source_url</code></dt>
-            <dd><code>http://</code> または <code>https://</code> から始まるURL。未設定は省略または <code>null</code>。</dd>
-          </div>
-          <div>
-            <dt><code>last_verified_at</code></dt>
-            <dd><code>YYYY-MM-DD</code> 形式の日付。未設定は省略または <code>null</code>。</dd>
-          </div>
-          <div>
-            <dt><code>is_published</code></dt>
-            <dd><code>true</code> または <code>false</code>。省略した場合は <code>false</code>。</dd>
-          </div>
-        </dl>
+        {% if import_error %}
+          <p class="form-message form-message-error">{{ import_error }}</p>
+        {% endif %}
+
+        <form class="json-import-form" action="{{ url_for('import_places') }}" method="post" enctype="multipart/form-data">
+          <label>
+            <span>JSONファイル</span>
+            <input type="file" name="json_file" accept=".json,application/json" required>
+          </label>
+          <button class="form-submit" type="submit">登録</button>
+        </form>
+
+        <div class="json-template-heading">
+          <h3>テンプレート</h3>
+          <button class="copy-button" id="copy-json-template" type="button">コピー</button>
+        </div>
+        <pre class="json-template" id="json-template"><code>{{ json_template }}</code></pre>
+
+        <div class="json-rules">
+          <h3>入力ルール</h3>
+          <ul class="json-file-rules">
+            <li>1MB以下、100件まで。</li>
+            <li><code>{"places": [...]}</code> または <code>[...]</code>。</li>
+            <li>必須：<code>name</code>、<code>category</code>、<code>latitude</code>、<code>longitude</code></li>
+          </ul>
+
+          <dl class="json-field-rules">
+            <div>
+              <dt><code>name</code> <span class="json-required">必須</span></dt>
+              <dd>空でない文字列。</dd>
+            </div>
+            <div>
+              <dt><code>category</code> <span class="json-required">必須</span></dt>
+              <dd>登録済みカテゴリのDB用の値。</dd>
+            </div>
+            <div>
+              <dt><code>latitude</code> <span class="json-required">必須</span></dt>
+              <dd>数値（-90〜90）。</dd>
+            </div>
+            <div>
+              <dt><code>longitude</code> <span class="json-required">必須</span></dt>
+              <dd>数値（-180〜180）。</dd>
+            </div>
+            <div>
+              <dt><code>description</code> / <code>address</code></dt>
+              <dd>文字列。省略可。</dd>
+            </div>
+            <div>
+              <dt><code>opening_hours</code></dt>
+              <dd>曜日別。1日10件まで。</dd>
+            </div>
+            <div>
+              <dt><code>open</code> / <code>close</code></dt>
+              <dd><code>HH:MM</code>。複数時間帯は配列、定休日は <code>null</code>。</dd>
+            </div>
+            <div>
+              <dt><code>closed_dates</code></dt>
+              <dd><code>YYYY-MM-DD</code> の配列。100件まで。</dd>
+            </div>
+            <div>
+              <dt><code>annual_closed_dates</code></dt>
+              <dd><code>MM-DD</code> の配列。366件まで。</dd>
+            </div>
+            <div>
+              <dt><code>recurring_closed_days</code></dt>
+              <dd><code>week_of_month</code> は1〜5、<code>day</code> は曜日。35件まで。</dd>
+            </div>
+            <div>
+              <dt><code>price_min</code> / <code>price_max</code></dt>
+              <dd>0以上の整数。省略可。</dd>
+            </div>
+            <div>
+              <dt><code>website_url</code> / <code>source_url</code></dt>
+              <dd>HTTP(S) URL。省略可。</dd>
+            </div>
+            <div>
+              <dt><code>last_verified_at</code></dt>
+              <dd><code>YYYY-MM-DD</code>。省略可。</dd>
+            </div>
+            <div>
+              <dt><code>is_published</code></dt>
+              <dd><code>true</code> / <code>false</code>。既定値は <code>false</code>。</dd>
+            </div>
+          </dl>
+        </div>
+
+        <h3 class="json-category-heading"><code>category</code> の値</h3>
+        <div class="category-list category-list-json" aria-label="JSONで使えるカテゴリ">
+          {% for value, label in categories %}
+            <span>{{ label }} <code>{{ value }}</code></span>
+          {% endfor %}
+        </div>
+        <p class="copy-result" id="copy-result" aria-live="polite"></p>
       </div>
+    </details>
 
-      <h3 class="json-category-heading">categoryで使える値</h3>
-      <div class="category-list category-list-json" aria-label="JSONで使えるカテゴリ">
-        {% for value, label in categories %}
-          <span>{{ label }} <code>{{ value }}</code></span>
-        {% endfor %}
-      </div>
-      <p class="copy-result" id="copy-result" aria-live="polite"></p>
-    </section>
-
-    <!-- 登録済みの場所を確認・削除する -->
     <section class="admin-panel">
       <div class="places-heading">
         <h2>場所の一覧</h2>
@@ -229,6 +287,7 @@
         <p class="empty-message">まだ場所が登録されていません。</p>
       {% endif %}
     </section>
+
   </main>
 {% endblock %}
 

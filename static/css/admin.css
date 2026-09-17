@@ -41,12 +41,6 @@
   font-size: 16px;
 }
 
-.admin-lead {
-  margin: 8px 0 0;
-  color: var(--color-text-muted);
-  line-height: 1.7;
-}
-
 .admin-panel {
   margin-top: 24px;
   padding: clamp(20px, 5vw, 40px);
@@ -55,28 +49,76 @@
   background-color: var(--color-surface);
 }
 
-.panel-description {
-  margin: -8px 0 20px;
+.admin-disclosure {
+  padding: 0;
+  overflow: clip;
+}
+
+.admin-disclosure > summary {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px clamp(20px, 5vw, 40px);
+  cursor: pointer;
+  list-style: none;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.admin-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-disclosure > summary small {
   color: var(--color-text-muted);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.admin-disclosure > summary::after {
+  content: "+";
+  width: 24px;
+  color: var(--color-text-muted);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  text-align: center;
+}
+
+.admin-disclosure[open] > summary::after {
+  content: "−";
+}
+
+.admin-disclosure-body {
+  padding: 28px clamp(20px, 5vw, 40px) clamp(20px, 5vw, 40px);
+  border-top: 1px solid var(--color-border);
 }
 
 .category-form {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 52px minmax(130px, 1.2fr) minmax(120px, 1fr) 72px minmax(120px, 0.8fr) auto;
   align-items: end;
-  gap: 16px;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-subtle);
 }
 
-.category-form label {
+.category-form label,
+.category-editor-row label {
   display: grid;
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
 }
 
-.category-form input {
+.category-form input,
+.category-form select,
+.category-editor-row input,
+.category-editor-row select {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid var(--color-border-strong);
@@ -84,6 +126,71 @@
   color: var(--color-text);
   background-color: var(--color-surface);
   font: inherit;
+}
+
+.category-color-input[type="color"] {
+  min-width: 48px;
+  height: 44px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.category-style-preview {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  align-self: end;
+  border-radius: 50%;
+  color: #fff;
+  background-color: var(--category-color);
+}
+
+.category-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.category-list-heading {
+  margin-top: 30px !important;
+}
+
+.category-editor-list {
+  display: grid;
+  margin-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.category-editor-row {
+  display: grid;
+  grid-template-columns: 52px minmax(130px, 1.2fr) minmax(110px, 1fr) 72px minmax(120px, 0.8fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.category-code {
+  display: grid;
+  gap: 8px;
+  align-self: stretch;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.category-code > span {
+  font-weight: 600;
+}
+
+.category-code code {
+  padding: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background-color: var(--color-surface-subtle);
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .category-list {
@@ -679,17 +786,6 @@ h3.json-category-heading {
   color: var(--color-text-muted);
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .form-message {
   margin: 0 0 20px;
   padding: 12px 14px;
@@ -783,6 +879,34 @@ h3.json-category-heading {
 
   .category-form {
     grid-template-columns: 1fr;
+  }
+
+  .category-form .category-style-preview {
+    align-self: start;
+  }
+
+  .category-editor-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .category-editor-row > :not(.category-style-preview) {
+    grid-column: 2;
+  }
+
+  .category-editor-row .category-style-preview {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+  }
+
+  .admin-disclosure > summary {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+
+  .admin-disclosure > summary small {
+    display: none;
   }
 
   .places-actions {

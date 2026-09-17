@@ -1,28 +1,24 @@
-<!-- テンプレート -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}ヨリタビ{% endblock %}</title>
-  <meta name="description" content="ライブやフェスの前後に、近くで立ち寄れる観光地やお店を探す。ヨリタビは、遠征先での寄り道を手伝うサービスです。">
+  <meta name="description" content="ライブやフェス会場の周辺で、飲食店や観光地を探せる地図サービス。">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   {% block styles %}{% endblock %}
   {% block head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
 
-  <!-- 共通ヘッダー -->
   {% block header %}
     <header class="app-header">
       <a class="app-logo" href="{{ url_for('index') }}">ヨリタビ</a>
     </header>
   {% endblock %}
 
-  <!-- 各画面の本文 -->
   {% block content %}{% endblock %}
 
-  <!-- JavaScriptを読み込む -->
   {% block scripts %}{% endblock %}
 </body>
 </html>

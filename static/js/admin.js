@@ -15,9 +15,32 @@ const applyHoursButton = document.querySelector("#apply-hours");
 const addHoursButton = document.querySelector("#add-hours");
 const applyClosedButton = document.querySelector("#apply-closed");
 const hoursBulkResult = document.querySelector("#hours-bulk-result");
+const hoursPresetButtons = document.querySelector(".hours-preset-buttons");
 const closedDateList = document.querySelector("#closed-date-list");
 const annualClosureList = document.querySelector("#annual-closure-list");
 const recurringClosureList = document.querySelector("#recurring-closure-list");
+
+document.addEventListener("input", (event) => {
+  if (!event.target.classList.contains("category-color-input")) {
+    return;
+  }
+
+  event.target
+    .closest(".category-settings-form")
+    .querySelector(".category-style-preview")
+    .style.setProperty("--category-color", event.target.value);
+});
+
+document.addEventListener("change", (event) => {
+  if (!event.target.classList.contains("category-icon-select")) {
+    return;
+  }
+
+  event.target
+    .closest(".category-settings-form")
+    .querySelector(".category-style-preview use")
+    .setAttribute("href", `#category-icon-${event.target.value}`);
+});
 
 function addEmptyClosureRow(list) {
   const row = list?.firstElementChild?.cloneNode(true);
@@ -59,8 +82,6 @@ function removeClosureRow(event, list) {
   });
 });
 
-
-// JSONテンプレートをクリップボードにコピーする
 copyButton?.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(jsonTemplate.textContent.trim());
@@ -71,9 +92,10 @@ copyButton?.addEventListener("click", async () => {
   }
 });
 
-// 選択状態に合わせて削除ボタンを切り替える
 function updateSelection() {
-  const selectedCount = placeCheckboxes.filter((checkbox) => checkbox.checked).length;
+  const selectedCount = placeCheckboxes.filter(
+    (checkbox) => checkbox.checked
+  ).length;
 
   deleteButton.disabled = selectedCount === 0;
   deleteButton.textContent = selectedCount
@@ -142,7 +164,6 @@ function setClosedState(row) {
     });
 }
 
-// 曜日ごとの操作は親要素でまとめて受け取る
 hoursList?.addEventListener("change", (event) => {
   if (event.target.classList.contains("hours-closed")) {
     setClosedState(event.target.closest(".hours-row"));
@@ -194,17 +215,17 @@ function getBulkSelection(emptyMessage, needsTimes = false) {
   };
 }
 
-// 全曜日・平日・土日をすぐ選べるようにする
-document.querySelectorAll("[data-days]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const preset = button.dataset.days;
+hoursPresetButtons?.addEventListener("click", (event) => {
+  const preset = event.target.dataset.days;
+  if (!preset) {
+    return;
+  }
 
-    bulkDayCheckboxes.forEach((checkbox, index) => {
-      checkbox.checked =
-        preset === "all" ||
-        (preset === "weekday" && index < 5) ||
-        (preset === "weekend" && index >= 5);
-    });
+  bulkDayCheckboxes.forEach((checkbox, index) => {
+    checkbox.checked =
+      preset === "all" ||
+      (preset === "weekday" && index < 5) ||
+      (preset === "weekend" && index >= 5);
   });
 });
 

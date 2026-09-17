@@ -12,13 +12,9 @@
     <a class="back-link" href="{{ url_for('admin_places') }}">← 場所の一覧へ戻る</a>
 
     <div class="admin-title-row">
-      <div>
-        <h1>場所を編集</h1>
-        <p class="admin-lead">登録済みの情報を修正します。</p>
-      </div>
+      <h1>場所を編集</h1>
     </div>
 
-    <!-- 登録済みの場所を編集するフォーム -->
     <section class="admin-panel">
       {% if error %}
         <p class="form-message form-message-error">{{ error }}</p>
