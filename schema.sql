@@ -73,5 +73,34 @@ ALTER TABLE public.place_opening_hours
     ADD CONSTRAINT place_opening_hours_pkey
     PRIMARY KEY (place_id, day_of_week, period_index);
 
+-- 年を含む臨時休業日
+CREATE TABLE IF NOT EXISTS public.place_closed_dates (
+    place_id BIGINT NOT NULL REFERENCES public.places (id) ON DELETE CASCADE,
+    closed_on DATE NOT NULL,
+    PRIMARY KEY (place_id, closed_on)
+);
+
+-- 元日など、毎年同じ月日に休む設定
+CREATE TABLE IF NOT EXISTS public.place_annual_closures (
+    place_id BIGINT NOT NULL REFERENCES public.places (id) ON DELETE CASCADE,
+    month SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
+    day SMALLINT NOT NULL CHECK (
+        day BETWEEN 1 AND CASE
+            WHEN month IN (4, 6, 9, 11) THEN 30
+            WHEN month = 2 THEN 29
+            ELSE 31
+        END
+    ),
+    PRIMARY KEY (place_id, month, day)
+);
+
+-- 第2火曜日など、毎月繰り返す定休日
+CREATE TABLE IF NOT EXISTS public.place_recurring_closures (
+    place_id BIGINT NOT NULL REFERENCES public.places (id) ON DELETE CASCADE,
+    week_of_month SMALLINT NOT NULL CHECK (week_of_month BETWEEN 1 AND 5),
+    day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    PRIMARY KEY (place_id, week_of_month, day_of_week)
+);
+
 CREATE INDEX IF NOT EXISTS places_published_order_idx
     ON public.places (is_published, display_order);

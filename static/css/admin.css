@@ -162,6 +162,29 @@
   grid-column: 1 / -1;
 }
 
+.closure-disclosure {
+  padding: 14px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.closure-disclosure > summary {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.closure-disclosure > summary small {
+  margin-left: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.closure-disclosure-body {
+  padding-top: 18px;
+}
+
 .hours-fieldset {
   margin: 0;
   padding: 0;
@@ -324,6 +347,86 @@
 .hours-closed-label input {
   width: 17px;
   height: 17px;
+}
+
+.closure-fieldset {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.closure-fieldset > legend {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.closure-group {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.closure-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.closure-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.closure-heading strong {
+  font-size: 14px;
+}
+
+.closure-heading span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.closure-heading button,
+.remove-closure-row {
+  padding: 7px 10px;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.closure-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.closure-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closed-date-row input {
+  max-width: 240px;
+}
+
+.annual-closure-row select,
+.annual-closure-row input,
+.recurring-closure-row select {
+  width: auto;
+  min-width: 100px;
+}
+
+.annual-closure-row input {
+  max-width: 100px;
 }
 
 .checkbox-label {
@@ -638,6 +741,30 @@ h3.json-category-heading {
 
   .hours-row-actions {
     flex-wrap: wrap;
+  }
+
+  .closure-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .closure-row {
+    flex-wrap: wrap;
+  }
+
+  .closed-date-row input {
+    flex: 1;
+  }
+
+  .annual-closure-row select,
+  .annual-closure-row input,
+  .recurring-closure-row select {
+    flex: 1;
+    min-width: 92px;
+  }
+
+  .remove-closure-row {
+    margin-left: auto;
   }
 
   .form-submit {

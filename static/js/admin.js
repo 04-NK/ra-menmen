@@ -15,6 +15,50 @@ const applyHoursButton = document.querySelector("#apply-hours");
 const addHoursButton = document.querySelector("#add-hours");
 const applyClosedButton = document.querySelector("#apply-closed");
 const hoursBulkResult = document.querySelector("#hours-bulk-result");
+const closedDateList = document.querySelector("#closed-date-list");
+const annualClosureList = document.querySelector("#annual-closure-list");
+const recurringClosureList = document.querySelector("#recurring-closure-list");
+
+function addEmptyClosureRow(list) {
+  const row = list?.firstElementChild?.cloneNode(true);
+  if (!row) {
+    return;
+  }
+
+  row.querySelectorAll("input, select").forEach((control) => {
+    control.value = "";
+  });
+  list.append(row);
+}
+
+function removeClosureRow(event, list) {
+  if (!event.target.classList.contains("remove-closure-row")) {
+    return;
+  }
+
+  const row = event.target.closest(".closure-row");
+  if (list.children.length === 1) {
+    row.querySelectorAll("input, select").forEach((control) => {
+      control.value = "";
+    });
+  } else {
+    row.remove();
+  }
+}
+
+[
+  ["#add-closed-date", closedDateList],
+  ["#add-annual-closure", annualClosureList],
+  ["#add-recurring-closure", recurringClosureList],
+].forEach(([buttonSelector, list]) => {
+  document.querySelector(buttonSelector)?.addEventListener("click", () => {
+    addEmptyClosureRow(list);
+  });
+  list?.addEventListener("click", (event) => {
+    removeClosureRow(event, list);
+  });
+});
+
 
 // JSONテンプレートをクリップボードにコピーする
 copyButton?.addEventListener("click", async () => {

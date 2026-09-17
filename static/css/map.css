@@ -307,6 +307,15 @@
   color: #7b5550;
 }
 
+.place-closure-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  list-style: none;
+}
+
 .place-popup-link {
   display: block;
   margin: 0 18px 16px;

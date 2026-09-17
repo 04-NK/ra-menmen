@@ -174,6 +174,45 @@ function createOpeningHours(openingHours) {
 }
 
 // 登録済みスポットのポップアップを作る
+function createClosureInfo(place) {
+  const closedDates = place.closed_dates || [];
+  const annualClosedDates = place.annual_closed_dates || [];
+  const recurringClosedDays = place.recurring_closed_days || [];
+
+  if (!closedDates.length && !annualClosedDates.length && !recurringClosedDays.length) {
+    return null;
+  }
+
+  const section = createElement("section", "place-popup-section");
+  const heading = createElement("h3", "", "休業日");
+  const list = createElement("ul", "place-closure-list");
+
+  if (closedDates.length) {
+    const labels = closedDates.map((value) => {
+      const [year, month, day] = value.split("-").map(Number);
+      return `${year}年${month}月${day}日`;
+    });
+    list.append(createElement("li", "", `臨時：${labels.join("、")}`));
+  }
+
+  if (annualClosedDates.length) {
+    const labels = annualClosedDates.map(
+      (rule) => `${rule.month}月${rule.day}日`
+    );
+    list.append(createElement("li", "", `毎年：${labels.join("、")}`));
+  }
+
+  if (recurringClosedDays.length) {
+    const labels = recurringClosedDays.map(
+      (rule) => `第${rule.week_of_month}${weekdayLabels[rule.day_of_week]}曜日`
+    );
+    list.append(createElement("li", "", `毎月：${labels.join("、")}`));
+  }
+
+  section.append(heading, list);
+  return section;
+}
+
 function createPlacePopup(place) {
   const popup = createElement("article", "place-popup");
   const heading = createElement("div", "place-popup-heading");
@@ -210,6 +249,11 @@ function createPlacePopup(place) {
 
   if (place.opening_hours.length) {
     popup.append(createOpeningHours(place.opening_hours));
+  }
+
+  const closureInfo = createClosureInfo(place);
+  if (closureInfo) {
+    popup.append(closureInfo);
   }
 
   if (place.website_url) {

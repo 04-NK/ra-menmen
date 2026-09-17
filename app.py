@@ -66,6 +66,12 @@ JSON_TEMPLATE = {
                 "saturday": [{"open": "10:00", "close": "21:00"}],
                 "sunday": [{"open": "10:00", "close": "20:00"}],
             },
+            "closed_dates": ["2026-09-20"],
+            "annual_closed_dates": ["01-01", "12-31"],
+            "recurring_closed_days": [
+                {"week_of_month": 2, "day": "tuesday"},
+                {"week_of_month": 4, "day": "tuesday"},
+            ],
             "price_min": 800,
             "price_max": 1200,
             "address": "千葉県千葉市美浜区",
@@ -214,6 +220,99 @@ def parse_opening_hours(data):
     return opening_hours
 
 
+def parse_closed_dates(data):
+    raw_dates = data.get("closed_dates")
+
+    if raw_dates is None:
+        return []
+    if not isinstance(raw_dates, list):
+        raise ValueError("closed_datesは日付の配列で入力してください")
+    if len(raw_dates) > 100:
+        raise ValueError("特定の休業日は100件以内で入力してください")
+
+    closed_dates = set()
+    for raw_date in raw_dates:
+        if not isinstance(raw_date, str) or not raw_date.strip():
+            raise ValueError("特定の休業日はYYYY-MM-DD形式で入力してください")
+        try:
+            closed_dates.add(date.fromisoformat(raw_date.strip()))
+        except ValueError as error:
+            raise ValueError(
+                "特定の休業日はYYYY-MM-DD形式で入力してください"
+            ) from error
+
+    return sorted(closed_dates)
+
+
+def parse_annual_closed_dates(data):
+    raw_dates = data.get("annual_closed_dates")
+
+    if raw_dates is None:
+        return []
+    if not isinstance(raw_dates, list):
+        raise ValueError("annual_closed_datesは月日の配列で入力してください")
+    if len(raw_dates) > 366:
+        raise ValueError("毎年の休業日は366件以内で入力してください")
+
+    annual_closed_dates = set()
+    for raw_date in raw_dates:
+        if not isinstance(raw_date, str) or not re.fullmatch(
+            r"\d{2}-\d{2}", raw_date.strip()
+        ):
+            raise ValueError("毎年の休業日はMM-DD形式で入力してください")
+        month, day = (int(value) for value in raw_date.split("-"))
+        try:
+            date(2000, month, day)
+        except ValueError as error:
+            raise ValueError("毎年の休業日に存在する月日を入力してください") from error
+        annual_closed_dates.add((month, day))
+
+    return [
+        {"month": month, "day": day}
+        for month, day in sorted(annual_closed_dates)
+    ]
+
+
+def parse_recurring_closed_days(data):
+    raw_rules = data.get("recurring_closed_days")
+
+    if raw_rules is None:
+        return []
+    if not isinstance(raw_rules, list):
+        raise ValueError("recurring_closed_daysは配列で入力してください")
+    if len(raw_rules) > 35:
+        raise ValueError("毎月の定休日は35件以内で入力してください")
+
+    weekday_indexes = {key: index for index, (key, _) in enumerate(WEEKDAYS)}
+    recurring_closed_days = set()
+
+    for rule in raw_rules:
+        if not isinstance(rule, dict):
+            raise ValueError("毎月の定休日の形式が正しくありません")
+
+        week_of_month = rule.get("week_of_month")
+        day = rule.get("day")
+        if isinstance(week_of_month, bool):
+            raise ValueError("毎月の定休日の週は1から5で入力してください")
+        try:
+            week_of_month = int(week_of_month)
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                "毎月の定休日の週は1から5で入力してください"
+            ) from error
+        if week_of_month not in range(1, 6):
+            raise ValueError("毎月の定休日の週は1から5で入力してください")
+        if day not in weekday_indexes:
+            raise ValueError("毎月の定休日の曜日が正しくありません")
+
+        recurring_closed_days.add((week_of_month, weekday_indexes[day]))
+
+    return [
+        {"week_of_month": week, "day_of_week": day}
+        for week, day in sorted(recurring_closed_days)
+    ]
+
+
 def get_form_hour_values(form, key):
     return (
         form.getlist(f"hours_{key}_open"),
@@ -245,6 +344,88 @@ def parse_opening_hours_form(form):
             opening_hours[key] = periods
 
     return opening_hours
+
+
+def parse_closed_dates_form(form):
+    return [value.strip() for value in form.getlist("closed_dates") if value.strip()]
+
+
+def parse_annual_closed_dates_form(form):
+    months = form.getlist("annual_closed_month")
+    days = form.getlist("annual_closed_day")
+    if len(months) != len(days):
+        raise ValueError("毎年の休業日の入力形式が正しくありません")
+
+    dates = []
+    for month, day in zip(months, days):
+        month = month.strip()
+        day = day.strip()
+        if not month and not day:
+            continue
+        if not month or not day:
+            raise ValueError("毎年の休業日は月と日を入力してください")
+        try:
+            dates.append(f"{int(month):02d}-{int(day):02d}")
+        except ValueError as error:
+            raise ValueError("毎年の休業日は月と日を数字で入力してください") from error
+
+    return dates
+
+
+def parse_recurring_closed_days_form(form):
+    weeks = form.getlist("recurring_closed_week")
+    days = form.getlist("recurring_closed_day")
+    if len(weeks) != len(days):
+        raise ValueError("毎月の定休日の入力形式が正しくありません")
+
+    rules = []
+    for week, day in zip(weeks, days):
+        week = week.strip()
+        day = day.strip()
+        if not week and not day:
+            continue
+        if not week or not day:
+            raise ValueError("毎月の定休日は週と曜日を選択してください")
+        rules.append({"week_of_month": week, "day": day})
+
+    return rules
+
+
+def closure_fields_from_form(form):
+    closed_dates = [
+        value.strip() for value in form.getlist("closed_dates") if value.strip()
+    ]
+    months = form.getlist("annual_closed_month")
+    annual_days = form.getlist("annual_closed_day")
+    annual_closed_dates = [
+        {"month": month, "day": day}
+        for month, day in zip(months, annual_days)
+        if month or day
+    ]
+    weeks = form.getlist("recurring_closed_week")
+    days = form.getlist("recurring_closed_day")
+    recurring_closed_days = [
+        {"week_of_month": week, "day": day}
+        for week, day in zip(weeks, days)
+        if week or day
+    ]
+    return closed_dates, annual_closed_dates, recurring_closed_days
+
+
+def closures_to_form(place):
+    closed_dates = [str(value) for value in place.get("closed_dates") or []]
+    annual_closed_dates = [
+        {"month": str(rule["month"]), "day": str(rule["day"])}
+        for rule in place.get("annual_closed_dates") or []
+    ]
+    recurring_closed_days = [
+        {
+            "week_of_month": str(rule["week_of_month"]),
+            "day": WEEKDAYS[rule["day_of_week"]][0],
+        }
+        for rule in place.get("recurring_closed_days") or []
+    ]
+    return closed_dates, annual_closed_dates, recurring_closed_days
 
 
 def opening_hours_fields_from_form(form):
@@ -346,6 +527,9 @@ def parse_place_data(data, category_values):
         "longitude": longitude,
         "description": get_text(data, "description") or None,
         "opening_hours": parse_opening_hours(data),
+        "closed_dates": parse_closed_dates(data),
+        "annual_closed_dates": parse_annual_closed_dates(data),
+        "recurring_closed_days": parse_recurring_closed_days(data),
         "price_min": price_min,
         "price_max": price_max,
         "address": get_text(data, "address") or None,
@@ -360,6 +544,9 @@ def parse_place_form(form, category_values):
     data = form.to_dict()
     data["is_published"] = form.get("is_published") == "on"
     data["opening_hours"] = parse_opening_hours_form(form)
+    data["closed_dates"] = parse_closed_dates_form(form)
+    data["annual_closed_dates"] = parse_annual_closed_dates_form(form)
+    data["recurring_closed_days"] = parse_recurring_closed_days_form(form)
     return parse_place_data(data, category_values)
 
 
@@ -430,7 +617,27 @@ def parse_database_time(value):
 
 
 # 曜日別の営業時間から、指定した時刻に営業中か判定する
-def is_place_open(place, current_datetime):
+def get_closed_reason(place, current_date):
+    for closed_date in place.get("closed_dates") or []:
+        if str(closed_date) == current_date.isoformat():
+            return "臨時休業"
+
+    for rule in place.get("annual_closed_dates") or []:
+        if rule.get("month") == current_date.month and rule.get("day") == current_date.day:
+            return "定休日"
+
+    week_of_month = (current_date.day - 1) // 7 + 1
+    for rule in place.get("recurring_closed_days") or []:
+        if (
+            rule.get("week_of_month") == week_of_month
+            and rule.get("day_of_week") == current_date.weekday()
+        ):
+            return "定休日"
+
+    return None
+
+
+def is_within_opening_hours(place, current_datetime):
     current_day = current_datetime.weekday()
     current_time = current_datetime.time().replace(tzinfo=None)
 
@@ -460,12 +667,23 @@ def is_place_open(place, current_datetime):
     return False
 
 
+def is_place_open(place, current_datetime):
+    return not get_closed_reason(
+        place, current_datetime.date()
+    ) and is_within_opening_hours(place, current_datetime)
+
+
 def add_open_status(place, current_datetime):
     place = dict(place)
     opening_hours = place.get("opening_hours") or []
-    place["is_open_now"] = is_place_open(place, current_datetime)
+    closed_reason = get_closed_reason(place, current_datetime.date())
+    place["is_open_now"] = not closed_reason and is_within_opening_hours(
+        place, current_datetime
+    )
 
-    if not opening_hours:
+    if closed_reason:
+        place["open_status"] = closed_reason
+    elif not opening_hours:
         place["open_status"] = "営業時間未設定"
     elif place["is_open_now"]:
         place["open_status"] = "営業中"
@@ -539,6 +757,17 @@ def render_admin_page(
 ):
     list_error = None
 
+    if is_post and form is not None:
+        (
+            closed_dates_form,
+            annual_closed_dates_form,
+            recurring_closed_days_form,
+        ) = closure_fields_from_form(form)
+    else:
+        closed_dates_form = []
+        annual_closed_dates_form = []
+        recurring_closed_days_form = []
+
     try:
         registered_places = get_all_places()
         category_rows = get_categories()
@@ -572,6 +801,9 @@ def render_admin_page(
         ),
         json_template=json.dumps(JSON_TEMPLATE, ensure_ascii=False, indent=2),
         list_error=list_error,
+        closed_dates_form=closed_dates_form,
+        annual_closed_dates_form=annual_closed_dates_form,
+        recurring_closed_days_form=recurring_closed_days_form,
         opening_hours_form=(
             opening_hours_fields_from_form(form) if is_post and form is not None else {}
         ),
@@ -665,11 +897,21 @@ def edit_place(place_id):
     form = place
     is_published_checked = place["is_published"]
     opening_hours_form = opening_hours_to_form(place["opening_hours"])
+    (
+        closed_dates_form,
+        annual_closed_dates_form,
+        recurring_closed_days_form,
+    ) = closures_to_form(place)
 
     if request.method == "POST":
         form = request.form
         is_published_checked = request.form.get("is_published") == "on"
         opening_hours_form = opening_hours_fields_from_form(request.form)
+        (
+            closed_dates_form,
+            annual_closed_dates_form,
+            recurring_closed_days_form,
+        ) = closure_fields_from_form(request.form)
 
         try:
             updated_place = parse_place_form(request.form, category_values)
@@ -687,10 +929,13 @@ def edit_place(place_id):
     return render_template(
         "edit_place.html",
         categories=category_choices,
+        closed_dates_form=closed_dates_form,
         error=error,
+        annual_closed_dates_form=annual_closed_dates_form,
         form=form,
         is_published_checked=is_published_checked,
         opening_hours_form=opening_hours_form,
+        recurring_closed_days_form=recurring_closed_days_form,
         weekdays=WEEKDAYS,
     )
 

@@ -59,6 +59,52 @@ OPENING_HOURS_SELECT_SQL = """
 """
 
 
+CLOSED_DATES_SELECT_SQL = """
+    COALESCE(
+        (
+            SELECT json_agg(to_char(closed_dates.closed_on, 'YYYY-MM-DD') ORDER BY closed_dates.closed_on)
+            FROM public.place_closed_dates AS closed_dates
+            WHERE closed_dates.place_id = places.id
+        ),
+        '[]'::json
+    ) AS closed_dates
+"""
+
+ANNUAL_CLOSED_DATES_SELECT_SQL = """
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'month', annual_closures.month,
+                    'day', annual_closures.day
+                )
+                ORDER BY annual_closures.month, annual_closures.day
+            )
+            FROM public.place_annual_closures AS annual_closures
+            WHERE annual_closures.place_id = places.id
+        ),
+        '[]'::json
+    ) AS annual_closed_dates
+"""
+
+RECURRING_CLOSED_DAYS_SELECT_SQL = """
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'week_of_month', recurring_closures.week_of_month,
+                    'day_of_week', recurring_closures.day_of_week
+                )
+                ORDER BY recurring_closures.week_of_month, recurring_closures.day_of_week
+            )
+            FROM public.place_recurring_closures AS recurring_closures
+            WHERE recurring_closures.place_id = places.id
+        ),
+        '[]'::json
+    ) AS recurring_closed_days
+"""
+
+
 class DatabaseNotConfiguredError(RuntimeError):
     pass
 
@@ -114,10 +160,53 @@ def save_opening_hours(cursor, place_id, opening_hours):
     )
 
 
+def save_closures(cursor, place_id, place):
+    if place["closed_dates"]:
+        cursor.executemany(
+            """
+            INSERT INTO public.place_closed_dates (place_id, closed_on)
+            VALUES (%(place_id)s, %(closed_on)s)
+            """,
+            [
+                {"place_id": place_id, "closed_on": closed_on}
+                for closed_on in place["closed_dates"]
+            ],
+        )
+
+    if place["annual_closed_dates"]:
+        cursor.executemany(
+            """
+            INSERT INTO public.place_annual_closures (place_id, month, day)
+            VALUES (%(place_id)s, %(month)s, %(day)s)
+            """,
+            [
+                {"place_id": place_id, **rule}
+                for rule in place["annual_closed_dates"]
+            ],
+        )
+
+    if place["recurring_closed_days"]:
+        cursor.executemany(
+            """
+            INSERT INTO public.place_recurring_closures (
+                place_id,
+                week_of_month,
+                day_of_week
+            )
+            VALUES (%(place_id)s, %(week_of_month)s, %(day_of_week)s)
+            """,
+            [
+                {"place_id": place_id, **rule}
+                for rule in place["recurring_closed_days"]
+            ],
+        )
+
+
 def insert_place(cursor, place):
     cursor.execute(INSERT_PLACE_SQL, place)
     place_id = cursor.fetchone()["id"]
     save_opening_hours(cursor, place_id, place["opening_hours"])
+    save_closures(cursor, place_id, place)
     return place_id
 
 
@@ -166,6 +255,9 @@ def get_published_places():
                     places.longitude,
                     places.description,
                     {OPENING_HOURS_SELECT_SQL},
+                    {CLOSED_DATES_SELECT_SQL},
+                    {ANNUAL_CLOSED_DATES_SELECT_SQL},
+                    {RECURRING_CLOSED_DAYS_SELECT_SQL},
                     places.price_min,
                     places.price_max,
                     places.address,
@@ -217,6 +309,9 @@ def get_place(place_id):
                     places.longitude,
                     places.description,
                     {OPENING_HOURS_SELECT_SQL},
+                    {CLOSED_DATES_SELECT_SQL},
+                    {ANNUAL_CLOSED_DATES_SELECT_SQL},
+                    {RECURRING_CLOSED_DAYS_SELECT_SQL},
                     places.price_min,
                     places.price_max,
                     places.address,
@@ -280,11 +375,18 @@ def update_place(place_id, place):
             if not updated:
                 return None
 
-            cursor.execute(
-                "DELETE FROM public.place_opening_hours WHERE place_id = %s",
-                (place_id,),
-            )
+            for table_name in (
+                "place_opening_hours",
+                "place_closed_dates",
+                "place_annual_closures",
+                "place_recurring_closures",
+            ):
+                cursor.execute(
+                    f"DELETE FROM public.{table_name} WHERE place_id = %s",
+                    (place_id,),
+                )
             save_opening_hours(cursor, place_id, place["opening_hours"])
+            save_closures(cursor, place_id, place)
             return updated["id"]
 
 

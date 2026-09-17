@@ -7,6 +7,45 @@
   </div>
 {% endmacro %}
 
+{% macro closed_date_row(value='') %}
+  <div class="closure-row closed-date-row">
+    <input type="date" name="closed_dates" value="{{ value }}" aria-label="特定の休業日">
+    <button class="remove-closure-row" type="button">削除</button>
+  </div>
+{% endmacro %}
+
+{% macro annual_closed_date_row(rule={}) %}
+  <div class="closure-row annual-closure-row">
+    <select name="annual_closed_month" aria-label="毎年休む月">
+      <option value="">月</option>
+      {% for month in range(1, 13) %}
+        <option value="{{ month }}" {% if rule.get('month') | string == month | string %}selected{% endif %}>{{ month }}月</option>
+      {% endfor %}
+    </select>
+    <input type="number" name="annual_closed_day" value="{{ rule.get('day', '') }}" min="1" max="31" step="1" inputmode="numeric" placeholder="日" aria-label="毎年休む日">
+    <span>日</span>
+    <button class="remove-closure-row" type="button">削除</button>
+  </div>
+{% endmacro %}
+
+{% macro recurring_closed_day_row(rule={}, weekdays=[]) %}
+  <div class="closure-row recurring-closure-row">
+    <select name="recurring_closed_week" aria-label="毎月休む週">
+      <option value="">第何週</option>
+      {% for week in range(1, 6) %}
+        <option value="{{ week }}" {% if rule.get('week_of_month') | string == week | string %}selected{% endif %}>第{{ week }}</option>
+      {% endfor %}
+    </select>
+    <select name="recurring_closed_day" aria-label="毎月休む曜日">
+      <option value="">曜日</option>
+      {% for key, label in weekdays %}
+        <option value="{{ key }}" {% if rule.get('day') == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="remove-closure-row" type="button">削除</button>
+  </div>
+{% endmacro %}
+
 <div class="form-grid">
   <label class="form-wide">
     <span>場所の名前 <span class="required-mark">*</span></span>
@@ -45,7 +84,7 @@
 
   <fieldset class="hours-fieldset form-wide">
     <legend>営業時間</legend>
-    <p>昼と夜など営業時間が分かれる場合は、その曜日に時間帯を追加します。</p>
+    <p>1日10件まで。</p>
 
     <div class="hours-bulk">
       <strong>まとめて設定</strong>
@@ -72,9 +111,9 @@
       </div>
 
       <div class="hours-bulk-actions">
-        <button type="button" id="apply-hours">最初の時間帯に反映</button>
+        <button type="button" id="apply-hours">時間帯を置き換え</button>
         <button type="button" id="add-hours">時間帯を追加</button>
-        <button type="button" id="apply-closed">選んだ曜日を定休日にする</button>
+        <button type="button" id="apply-closed">定休日にする</button>
       </div>
       <p class="hours-bulk-result" id="hours-bulk-result" aria-live="polite"></p>
     </div>
@@ -107,6 +146,76 @@
       {% endfor %}
     </div>
   </fieldset>
+
+  {% set has_closures = closed_dates_form or annual_closed_dates_form or recurring_closed_days_form %}
+  <details class="closure-disclosure form-wide" {% if has_closures %}open{% endif %}>
+    <summary>
+      <span>休業日の例外</span>
+      <small>{{ '設定あり' if has_closures else '特定日・毎年・第○曜日' }}</small>
+    </summary>
+    <div class="closure-disclosure-body">
+      <fieldset class="closure-fieldset">
+        <legend class="visually-hidden">休業日の例外</legend>
+
+        <section class="closure-group">
+          <div class="closure-heading">
+            <div>
+              <strong>特定の日付</strong>
+              <span>例：2026年9月20日</span>
+            </div>
+            <button id="add-closed-date" type="button">日付を追加</button>
+          </div>
+          <div class="closure-list" id="closed-date-list">
+            {% if closed_dates_form %}
+              {% for closed_date in closed_dates_form %}
+                {{ closed_date_row(closed_date) }}
+              {% endfor %}
+            {% else %}
+              {{ closed_date_row() }}
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="closure-group">
+          <div class="closure-heading">
+            <div>
+              <strong>毎年同じ日</strong>
+              <span>例：毎年1月1日</span>
+            </div>
+            <button id="add-annual-closure" type="button">月日を追加</button>
+          </div>
+          <div class="closure-list" id="annual-closure-list">
+            {% if annual_closed_dates_form %}
+              {% for rule in annual_closed_dates_form %}
+                {{ annual_closed_date_row(rule) }}
+              {% endfor %}
+            {% else %}
+              {{ annual_closed_date_row() }}
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="closure-group">
+          <div class="closure-heading">
+            <div>
+              <strong>毎月の第○曜日</strong>
+              <span>例：第2・第4火曜日</span>
+            </div>
+            <button id="add-recurring-closure" type="button">曜日を追加</button>
+          </div>
+          <div class="closure-list" id="recurring-closure-list">
+            {% if recurring_closed_days_form %}
+              {% for rule in recurring_closed_days_form %}
+                {{ recurring_closed_day_row(rule, weekdays) }}
+              {% endfor %}
+            {% else %}
+              {{ recurring_closed_day_row({}, weekdays) }}
+            {% endif %}
+          </div>
+        </section>
+      </fieldset>
+    </div>
+  </details>
 
   <label class="form-wide">
     <span>説明</span>
