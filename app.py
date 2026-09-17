@@ -478,7 +478,20 @@ def add_open_status(place, current_datetime):
 def price_sort_key(place):
     price_min = place.get("price_min")
     price_max = place.get("price_max")
+
+    # 価格帯の中央額を基準にする。片方だけなら、その金額を使う。
+    if price_min is not None and price_max is not None:
+        price_center_twice = price_min + price_max
+    elif price_min is not None:
+        price_center_twice = price_min * 2
+    elif price_max is not None:
+        price_center_twice = price_max * 2
+    else:
+        price_center_twice = 0
+
     return (
+        price_min is None and price_max is None,
+        price_center_twice,
         price_min is None,
         price_min or 0,
         price_max is None,

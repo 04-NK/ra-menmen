@@ -303,24 +303,37 @@ function clearPlaces() {
   activePlaceButton = null;
 }
 
+function getPriceCenterTwice(place) {
+  if (place.price_min !== null && place.price_max !== null) {
+    return place.price_min + place.price_max;
+  }
+  if (place.price_min !== null) {
+    return place.price_min * 2;
+  }
+  if (place.price_max !== null) {
+    return place.price_max * 2;
+  }
+  return null;
+}
+
 function createPlaceLabels(places) {
   if (placeSort.value !== "price_asc") {
     return places.map((_, index) => String(index + 1));
   }
 
-  let previousPrice = null;
+  let previousPriceCenter = null;
   let previousRank = 0;
 
-  return places.map((place, index) => {
-    const hasPrice = place.price_min !== null || place.price_max !== null;
-    if (!hasPrice) {
+  return places.map((place) => {
+    // サーバーと同じ中央額を使い、同じ金額は同順位にする。
+    const priceCenter = getPriceCenterTwice(place);
+    if (priceCenter === null) {
       return "";
     }
 
-    const price = `${place.price_min ?? ""}:${place.price_max ?? ""}`;
-    if (price !== previousPrice) {
-      previousPrice = price;
-      previousRank = index + 1;
+    if (priceCenter !== previousPriceCenter) {
+      previousPriceCenter = priceCenter;
+      previousRank += 1;
     }
 
     return String(previousRank);
