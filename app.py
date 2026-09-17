@@ -28,6 +28,7 @@ from database import (
     get_categories,
     get_place,
     get_published_places,
+    update_category,
     update_place,
 )
 
@@ -46,6 +47,17 @@ WEEKDAY_KEYS = {key for key, _ in WEEKDAYS}
 MAX_JSON_FILE_SIZE = 1_000_000
 MAX_JSON_PLACES = 100
 JAPAN_TIME_ZONE = ZoneInfo("Asia/Tokyo")
+CATEGORY_ICONS = (
+    ("place", "場所"),
+    ("restaurant", "飲食店"),
+    ("cafe", "カフェ"),
+    ("shop", "買い物"),
+    ("sightseeing", "観光"),
+    ("park", "公園"),
+    ("museum", "施設"),
+)
+CATEGORY_ICON_VALUES = {value for value, _ in CATEGORY_ICONS}
+DEFAULT_CATEGORY_COLOR = "#315f73"
 JSON_TEMPLATE = {
     "places": [
         {
@@ -84,7 +96,6 @@ JSON_TEMPLATE = {
 }
 
 
-# チーム用画面へのアクセスを確認する
 def admin_required(view):
     @wraps(view)
     def wrapped_view(*args, **kwargs):
@@ -592,19 +603,41 @@ def get_category_values(category_rows):
     return {category["value"] for category in category_rows}
 
 
-# トップ画面
+def parse_category_settings(form):
+    color = form.get("color", DEFAULT_CATEGORY_COLOR).strip().lower()
+    icon_name = form.get("icon_name", "place").strip()
+    display_name = form.get("display_name", "").strip()
+
+    if not re.fullmatch(r"#[0-9a-f]{6}", color):
+        raise ValueError("カテゴリの色を選択してください")
+    if icon_name not in CATEGORY_ICON_VALUES:
+        raise ValueError("カテゴリのアイコンを選択してください")
+    if not display_name:
+        raise ValueError("表示名を入力してください")
+    if len(display_name) > 50:
+        raise ValueError("表示名は50文字以内で入力してください")
+
+    return display_name, color, icon_name
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
 
 
-# 「はじめる」から進む地図画面
 @app.get("/app")
 def main():
-    return render_template("app.html")
+    try:
+        category_rows = get_categories()
+    except (DatabaseNotConfiguredError, psycopg.Error):
+        category_rows = []
+
+    return render_template(
+        "app.html",
+        categories=category_rows,
+    )
 
 
-# DBから取得した時刻を比較できる形にそろえる
 def parse_database_time(value):
     if isinstance(value, time):
         return value
@@ -616,7 +649,6 @@ def parse_database_time(value):
     return None
 
 
-# 曜日別の営業時間から、指定した時刻に営業中か判定する
 def get_closed_reason(place, current_date):
     for closed_date in place.get("closed_dates") or []:
         if str(closed_date) == current_date.isoformat():
@@ -718,7 +750,6 @@ def price_sort_key(place):
     )
 
 
-# 地図に表示する登録済みスポットを返す
 @app.get("/api/places")
 def places():
     try:
@@ -731,6 +762,16 @@ def places():
         if request.args.get("open_now") == "1":
             published_places = [
                 place for place in published_places if place["is_open_now"]
+            ]
+
+        categories = {
+            category.strip()
+            for category in request.args.getlist("category")
+            if category.strip()
+        }
+        if categories:
+            published_places = [
+                place for place in published_places if place["category"] in categories
             ]
 
         published_places.sort(key=price_sort_key)
@@ -786,7 +827,10 @@ def render_admin_page(
     return render_template(
         "admin_places.html",
         categories=category_choices,
+        category_icons=CATEGORY_ICONS,
+        category_rows=category_rows,
         category_created=request.args.get("category_created") is not None,
+        category_updated=request.args.get("category_updated") is not None,
         category_error=category_error,
         category_form=category_form or {},
         delete_error=delete_error,
@@ -814,7 +858,6 @@ def render_admin_page(
     )
 
 
-# 場所を登録する
 @app.route("/admin/places", methods=["GET", "POST"])
 @admin_required
 def admin_places():
@@ -840,23 +883,18 @@ def admin_places():
     )
 
 
-# 場所登録で使うカテゴリを追加する
 @app.post("/admin/categories")
 @admin_required
 def add_category():
     value = request.form.get("value", "").strip()
-    display_name = request.form.get("display_name", "").strip()
 
     try:
-        if not display_name:
-            raise ValueError("表示名を入力してください")
-        if len(display_name) > 50:
-            raise ValueError("表示名は50文字以内で入力してください")
+        display_name, color, icon_name = parse_category_settings(request.form)
         if not re.fullmatch(r"[a-z0-9_-]{1,40}", value):
             raise ValueError(
                 "DB用の値は40文字以内の半角英小文字・数字・_・-で入力してください"
             )
-        if not create_category(value, display_name):
+        if not create_category(value, display_name, color, icon_name):
             raise ValueError("同じ表示名またはDB用の値が登録されています")
     except (ValueError, DatabaseNotConfiguredError) as exception:
         error = str(exception) or "データベースが設定されていません"
@@ -874,7 +912,23 @@ def add_category():
     return redirect(url_for("admin_places", category_created=value))
 
 
-# 登録済みの場所を編集する
+@app.post("/admin/categories/<value>")
+@admin_required
+def edit_category(value):
+    try:
+        display_name, color, icon_name = parse_category_settings(request.form)
+        if not update_category(value, display_name, color, icon_name):
+            raise ValueError("カテゴリが見つかりません")
+    except (ValueError, DatabaseNotConfiguredError) as exception:
+        error = str(exception) or "データベースが設定されていません"
+        return render_admin_page(category_error=error)
+    except psycopg.Error:
+        app.logger.exception("カテゴリを更新できませんでした")
+        return render_admin_page(category_error="カテゴリを更新できませんでした")
+
+    return redirect(url_for("admin_places", category_updated=value))
+
+
 @app.route("/admin/places/<int:place_id>/edit", methods=["GET", "POST"])
 @admin_required
 def edit_place(place_id):
@@ -931,8 +985,8 @@ def edit_place(place_id):
         categories=category_choices,
         closed_dates_form=closed_dates_form,
         error=error,
-        annual_closed_dates_form=annual_closed_dates_form,
         form=form,
+        annual_closed_dates_form=annual_closed_dates_form,
         is_published_checked=is_published_checked,
         opening_hours_form=opening_hours_form,
         recurring_closed_days_form=recurring_closed_days_form,
@@ -940,7 +994,6 @@ def edit_place(place_id):
     )
 
 
-# JSONファイルから場所をまとめて登録する
 @app.post("/admin/places/import")
 @admin_required
 def import_places():
@@ -961,7 +1014,6 @@ def import_places():
     return redirect(url_for("admin_places", imported=imported_count))
 
 
-# 一覧で選択された場所をまとめて削除する
 @app.post("/admin/places/delete")
 @admin_required
 def remove_places():
@@ -988,6 +1040,5 @@ def remove_places():
     return redirect(url_for("admin_places", deleted=deleted_count))
 
 
-# python app.py で直接起動するときに実行
 if __name__ == "__main__":
     app.run()

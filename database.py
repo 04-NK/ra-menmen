@@ -58,7 +58,6 @@ OPENING_HOURS_SELECT_SQL = """
     ) AS opening_hours
 """
 
-
 CLOSED_DATES_SELECT_SQL = """
     COALESCE(
         (
@@ -210,13 +209,12 @@ def insert_place(cursor, place):
     return place_id
 
 
-# 場所登録で使えるカテゴリを取得する
 def get_categories():
     with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT value, display_name
+                SELECT value, display_name, color, icon_name
                 FROM public.place_categories
                 ORDER BY display_order, created_at, value
                 """
@@ -224,23 +222,44 @@ def get_categories():
             return cursor.fetchall()
 
 
-# 管理画面からカテゴリを追加する
-def create_category(value, display_name):
+def create_category(value, display_name, color, icon_name):
     with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO public.place_categories (value, display_name)
-                VALUES (%s, %s)
+                INSERT INTO public.place_categories (
+                    value,
+                    display_name,
+                    color,
+                    icon_name
+                )
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT DO NOTHING
                 RETURNING value
                 """,
-                (value, display_name),
+                (value, display_name, color, icon_name),
             )
             return cursor.fetchone() is not None
 
 
-# Neonから公開中のスポットを取得する
+def update_category(value, display_name, color, icon_name):
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE public.place_categories
+                SET
+                    display_name = %s,
+                    color = %s,
+                    icon_name = %s
+                WHERE value = %s
+                RETURNING value
+                """,
+                (display_name, color, icon_name, value),
+            )
+            return cursor.fetchone() is not None
+
+
 def get_published_places():
     with connect_database() as connection:
         with connection.cursor() as cursor:
@@ -251,6 +270,8 @@ def get_published_places():
                     places.name,
                     places.category,
                     COALESCE(categories.display_name, places.category) AS category_name,
+                    COALESCE(categories.color, '#315f73') AS category_color,
+                    COALESCE(categories.icon_name, 'place') AS category_icon,
                     places.latitude,
                     places.longitude,
                     places.description,
@@ -273,7 +294,6 @@ def get_published_places():
             return cursor.fetchall()
 
 
-# チーム用画面に登録済みの場所を表示する
 def get_all_places():
     with connect_database() as connection:
         with connection.cursor() as cursor:
@@ -295,7 +315,6 @@ def get_all_places():
             return cursor.fetchall()
 
 
-# 編集画面に表示する場所を取得する
 def get_place(place_id):
     with connect_database() as connection:
         with connection.cursor() as cursor:
@@ -327,14 +346,12 @@ def get_place(place_id):
             return cursor.fetchone()
 
 
-# チーム用画面からスポットを登録する
 def create_place(place):
     with connect_database() as connection:
         with connection.cursor() as cursor:
             return insert_place(cursor, place)
 
 
-# JSON内の場所を1回の処理でまとめて登録する
 def create_places(places):
     with connect_database() as connection:
         with connection.cursor() as cursor:
@@ -344,7 +361,6 @@ def create_places(places):
     return len(places)
 
 
-# 編集画面から場所を更新する
 def update_place(place_id, place):
     values = {**place, "id": place_id}
 
@@ -390,7 +406,6 @@ def update_place(place_id, place):
             return updated["id"]
 
 
-# 一覧で選択された場所をまとめて削除する
 def delete_places(place_ids):
     with connect_database() as connection:
         with connection.cursor() as cursor:

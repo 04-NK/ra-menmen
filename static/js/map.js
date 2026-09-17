@@ -1,4 +1,3 @@
-// 最初に表示する場所
 const initialLocation = {
   name: "幕張メッセ",
   lat: 35.64709538816071,
@@ -6,6 +5,15 @@ const initialLocation = {
   zoom: 16,
 };
 const weekdayLabels = ["月", "火", "水", "木", "金", "土", "日"];
+const categoryIconNames = new Set([
+  "place",
+  "restaurant",
+  "cafe",
+  "shop",
+  "sightseeing",
+  "park",
+  "museum",
+]);
 
 const map = L.map("map").setView(
   [initialLocation.lat, initialLocation.lng],
@@ -14,6 +22,10 @@ const map = L.map("map").setView(
 const placeMarkers = L.layerGroup().addTo(map);
 const openNowFilter = document.querySelector("#open-now-filter");
 const placeSort = document.querySelector("#place-sort");
+const categoryFilter = document.querySelector("#category-filter");
+const categoryFilterLabel = document.querySelector("#category-filter-label");
+const categoryCheckboxes = [...document.querySelectorAll(".category-checkbox")];
+const clearCategoryFilter = document.querySelector("#clear-category-filter");
 const placeCount = document.querySelector("#place-count");
 const placeList = document.querySelector("#place-list");
 const placeListPanel = document.querySelector("#place-list-panel");
@@ -23,6 +35,7 @@ const mapMessage = document.querySelector("#map-message");
 const placeListItems = new Map();
 const placeMarkersById = new Map();
 let activePlaceButton = null;
+let latestPlacesRequest = 0;
 
 function createElement(tagName, className, textContent) {
   const element = document.createElement(tagName);
@@ -35,13 +48,57 @@ function createElement(tagName, className, textContent) {
   return element;
 }
 
-// OpenStreetMapの地図画像を重ねる。出典表示は残す。
+function getCategoryIconName(iconName) {
+  return categoryIconNames.has(iconName) ? iconName : "place";
+}
+
+function createCategoryIconElement(iconName, className) {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+
+  icon.setAttribute("class", `category-icon ${className}`);
+  icon.setAttribute("aria-hidden", "true");
+  use.setAttribute("href", `#category-icon-${getCategoryIconName(iconName)}`);
+  icon.append(use);
+
+  return icon;
+}
+
+function createCategoryLabel(place) {
+  const category = createElement("span", "place-category-label");
+  const icon = createCategoryIconElement(
+    place.category_icon,
+    "place-category-icon"
+  );
+  const text = createElement(
+    "span",
+    "",
+    place.category_name || place.category
+  );
+
+  icon.style.color = place.category_color || "#315f73";
+  category.append(icon, text);
+
+  return category;
+}
+
+function updateCategoryFilterLabel() {
+  const selected = categoryCheckboxes.filter((checkbox) => checkbox.checked);
+
+  if (selected.length === 0) {
+    categoryFilterLabel.textContent = "すべて";
+  } else if (selected.length === 1) {
+    categoryFilterLabel.textContent = selected[0].dataset.label;
+  } else {
+    categoryFilterLabel.textContent = `${selected.length}件選択`;
+  }
+}
+
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
 
-// 会場は店舗と見分けられるラベル付きマーカーにする
 const venueIcon = L.divIcon({
   className: "custom-map-icon",
   html: '<span class="venue-marker">会場</span>',
@@ -50,7 +107,6 @@ const venueIcon = L.divIcon({
   popupAnchor: [0, -17],
 });
 
-// 会場も店舗と同じ見た目の吹き出しにする
 function createVenuePopup() {
   const popup = createElement("article", "place-popup");
   const heading = createElement("div", "place-popup-heading");
@@ -84,29 +140,21 @@ function setPlaceListVisibility(isVisible) {
   requestAnimationFrame(() => map.invalidateSize());
 }
 
-// 画面幅にかかわらず、一覧を開いた状態から始める
 setPlaceListVisibility(true);
 
 placeListToggle.addEventListener("click", () => {
   setPlaceListVisibility(placeListPanel.hidden);
 });
 
-// カテゴリごとに店舗マーカーの色を固定する
-function getMarkerColor(category) {
-  const text = category || "other";
-  let total = 0;
+function createPlaceIcon(label, markerColor, categoryIcon) {
+  const iconName = getCategoryIconName(categoryIcon);
+  const markerContent = label
+    ? `<span>${label}</span>`
+    : `<svg class="category-icon place-marker-category-icon" aria-hidden="true"><use href="#category-icon-${iconName}"></use></svg>`;
 
-  for (const character of text) {
-    total += character.codePointAt(0);
-  }
-
-  return total % 4;
-}
-
-function createPlaceIcon(label, markerColor) {
   return L.divIcon({
     className: "custom-map-icon",
-    html: `<span class="place-marker place-marker-color-${markerColor}"><span>${label}</span></span>`,
+    html: `<span class="place-marker" style="--marker-color: ${markerColor}">${markerContent}</span>`,
     iconSize: [30, 30],
     iconAnchor: [15, 30],
     popupAnchor: [0, -30],
@@ -173,7 +221,6 @@ function createOpeningHours(openingHours) {
   return section;
 }
 
-// 登録済みスポットのポップアップを作る
 function createClosureInfo(place) {
   const closedDates = place.closed_dates || [];
   const annualClosedDates = place.annual_closed_dates || [];
@@ -218,11 +265,7 @@ function createPlacePopup(place) {
   const heading = createElement("div", "place-popup-heading");
   const name = createElement("strong", "place-popup-name", place.name);
   const meta = createElement("div", "place-popup-meta");
-  const category = createElement(
-    "span",
-    "",
-    place.category_name || place.category
-  );
+  const category = createCategoryLabel(place);
   const status = createElement("span", "place-popup-status", place.open_status);
   const price = createElement(
     "p",
@@ -284,25 +327,23 @@ function activatePlace(placeId, shouldScroll = true) {
 function createPlaceListItem(place, label, markerColor) {
   const item = createElement("li");
   const button = createElement("button", "map-place-card");
-  const rank = createElement(
-    "span",
-    `map-place-rank place-marker-color-${markerColor}`,
-    label
-  );
+  const rank = createElement("span", "map-place-rank", label || undefined);
   const main = createElement("span", "map-place-card-main");
   const name = createElement("strong", "map-place-name", place.name);
   const details = createElement("span", "map-place-details");
-  const category = createElement(
-    "span",
-    "",
-    place.category_name || place.category
-  );
+  const category = createCategoryLabel(place);
   const price = createElement("span", "map-place-price", formatPrice(place));
   const status = createElement("span", "", place.open_status);
   const placeId = String(place.id);
 
   button.type = "button";
   button.dataset.placeId = placeId;
+  rank.style.backgroundColor = markerColor;
+  if (!label) {
+    rank.append(
+      createCategoryIconElement(place.category_icon, "map-place-rank-icon")
+    );
+  }
   if (place.is_open_now) {
     status.className = "map-place-open";
   }
@@ -316,7 +357,6 @@ function createPlaceListItem(place, label, markerColor) {
   return item;
 }
 
-// 一覧を押したら対応するマーカーを地図の中央に表示する
 placeList.addEventListener("click", (event) => {
   const button = event.target.closest(".map-place-card");
   if (!button) {
@@ -384,13 +424,16 @@ function createPlaceLabels(places) {
   });
 }
 
-// 選択中の条件でNeonからスポットを読み込む
 async function loadPlaces() {
+  const requestId = ++latestPlacesRequest;
   const query = new URLSearchParams();
   query.set("sort", placeSort.value);
   if (openNowFilter.checked) {
     query.set("open_now", "1");
   }
+  categoryCheckboxes
+    .filter((checkbox) => checkbox.checked)
+    .forEach((checkbox) => query.append("category", checkbox.value));
 
   placeCount.textContent = "場所を読み込み中";
   showMapMessage("");
@@ -402,16 +445,20 @@ async function loadPlaces() {
     }
 
     const data = await response.json();
+    if (requestId !== latestPlacesRequest) {
+      return;
+    }
+
     const placeListFragment = document.createDocumentFragment();
     const placeLabels = createPlaceLabels(data.places);
     clearPlaces();
 
     data.places.forEach((place, index) => {
       const label = placeLabels[index];
-      const markerColor = getMarkerColor(place.category);
+      const markerColor = place.category_color || "#315f73";
       const placeId = String(place.id);
       const marker = L.marker([place.latitude, place.longitude], {
-        icon: createPlaceIcon(label, markerColor),
+        icon: createPlaceIcon(label, markerColor, place.category_icon),
       });
       marker
         .addTo(placeMarkers)
@@ -441,6 +488,10 @@ async function loadPlaces() {
       placeList.append(emptyItem);
     }
   } catch (error) {
+    if (requestId !== latestPlacesRequest) {
+      return;
+    }
+
     clearPlaces();
     placeCount.textContent = "読み込みに失敗しました";
     showMapMessage(error.message);
@@ -449,4 +500,35 @@ async function loadPlaces() {
 
 openNowFilter.addEventListener("change", loadPlaces);
 placeSort.addEventListener("change", loadPlaces);
+categoryFilter.addEventListener("change", (event) => {
+  if (!event.target.classList.contains("category-checkbox")) {
+    return;
+  }
+
+  updateCategoryFilterLabel();
+  loadPlaces();
+});
+
+clearCategoryFilter.addEventListener("click", () => {
+  categoryCheckboxes.forEach((checkbox) => {
+    checkbox.checked = false;
+  });
+  updateCategoryFilterLabel();
+  loadPlaces();
+});
+
+document.addEventListener("click", (event) => {
+  if (!categoryFilter.contains(event.target)) {
+    categoryFilter.removeAttribute("open");
+  }
+});
+
+categoryFilter.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    categoryFilter.removeAttribute("open");
+    categoryFilter.querySelector("summary").focus();
+  }
+});
+
+updateCategoryFilterLabel();
 loadPlaces();

@@ -1,4 +1,3 @@
-<!-- base.htmlを継承 -->
 {% extends "base.html" %}
 
 
@@ -20,7 +19,8 @@
 
 {% block content %}
   <main class="app-content">
-    <!-- 営業中の場所だけに絞り込む -->
+    {% include "_category_icon_symbols.html" %}
+
     <div class="map-toolbar" aria-label="地図の表示設定">
       <label class="map-filter-check">
         <input id="open-now-filter" type="checkbox">
@@ -33,15 +33,33 @@
           <option value="price_asc">安い順</option>
         </select>
       </label>
+
+      <details class="map-category" id="category-filter">
+        <summary>
+          <span>カテゴリ</span>
+          <strong id="category-filter-label">すべて</strong>
+        </summary>
+        <div class="map-category-menu">
+          <fieldset>
+            <legend class="visually-hidden">表示するカテゴリ</legend>
+            {% for category in categories %}
+              <label class="map-category-option">
+                <input class="category-checkbox" type="checkbox" value="{{ category.value }}" data-label="{{ category.display_name }}" aria-label="{{ category.display_name }}">
+                <svg class="category-icon map-category-icon" style="color: {{ category.color }}" aria-hidden="true"><use href="#category-icon-{{ category.icon_name }}"></use></svg>
+                <span>{{ category.display_name }}</span>
+              </label>
+            {% endfor %}
+          </fieldset>
+          <button id="clear-category-filter" type="button" aria-label="カテゴリの選択を解除">選択を解除</button>
+        </div>
+      </details>
       <p id="place-count" class="place-count" aria-live="polite">場所を読み込み中</p>
     </div>
 
     <div class="map-layout">
       <div class="map-area">
-        <!-- 地図を表示 -->
         <div id="map" aria-label="周辺の地図"></div>
         <p id="map-message" class="map-message" role="status" hidden></p>
-        <!-- 地図と一覧の境目から一覧を開閉する -->
         <button
           id="place-list-toggle"
           class="place-list-toggle"
@@ -53,7 +71,6 @@
         ><span class="place-list-toggle-icon" aria-hidden="true">›</span></button>
       </div>
 
-      <!-- 地図上の場所を選択中の順番で表示 -->
       <aside id="place-list-panel" class="place-list-panel" aria-label="場所の一覧">
         <ol id="place-list" class="map-place-list"></ol>
       </aside>
@@ -62,12 +79,10 @@
 {% endblock %}
 
 {% block scripts %}
-  <!-- Leaflet本体を先に読み込む -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
-  <!-- map.jsを読み込む -->
   <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 {% endblock %}

@@ -2,23 +2,91 @@
 CREATE TABLE IF NOT EXISTS public.place_categories (
     value TEXT PRIMARY KEY CHECK (value ~ '^[a-z0-9_-]+$'),
     display_name TEXT NOT NULL UNIQUE,
+    color TEXT NOT NULL DEFAULT '#315f73'
+        CONSTRAINT place_categories_color_check
+        CHECK (color ~ '^#[0-9a-fA-F]{6}$'),
+    icon_name TEXT NOT NULL DEFAULT 'place'
+        CONSTRAINT place_categories_icon_name_check
+        CHECK (icon_name IN ('place', 'restaurant', 'cafe', 'shop', 'sightseeing', 'park', 'museum')),
     display_order INTEGER NOT NULL DEFAULT 100,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE public.place_categories
-    ADD COLUMN IF NOT EXISTS display_order INTEGER NOT NULL DEFAULT 100;
+    ADD COLUMN IF NOT EXISTS display_order INTEGER NOT NULL DEFAULT 100,
+    ADD COLUMN IF NOT EXISTS color TEXT,
+    ADD COLUMN IF NOT EXISTS icon_name TEXT;
 
-INSERT INTO public.place_categories (value, display_name, display_order)
+UPDATE public.place_categories
+SET color = CASE value
+    WHEN 'restaurant' THEN '#a84436'
+    WHEN 'cafe' THEN '#8a5d28'
+    WHEN 'fast_food' THEN '#b35c24'
+    WHEN 'shop' THEN '#356b61'
+    WHEN 'tourism' THEN '#315f73'
+    WHEN 'park' THEN '#3f7148'
+    WHEN 'museum' THEN '#765789'
+    ELSE '#5f6d72'
+END
+WHERE color IS NULL;
+
+UPDATE public.place_categories
+SET icon_name = CASE value
+    WHEN 'restaurant' THEN 'restaurant'
+    WHEN 'cafe' THEN 'cafe'
+    WHEN 'fast_food' THEN 'restaurant'
+    WHEN 'shop' THEN 'shop'
+    WHEN 'tourism' THEN 'sightseeing'
+    WHEN 'park' THEN 'park'
+    WHEN 'museum' THEN 'museum'
+    ELSE 'place'
+END
+WHERE icon_name IS NULL;
+
+ALTER TABLE public.place_categories
+    ALTER COLUMN color SET DEFAULT '#315f73',
+    ALTER COLUMN color SET NOT NULL,
+    ALTER COLUMN icon_name SET DEFAULT 'place',
+    ALTER COLUMN icon_name SET NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'place_categories_color_check'
+    ) THEN
+        ALTER TABLE public.place_categories
+            ADD CONSTRAINT place_categories_color_check
+            CHECK (color ~ '^#[0-9a-fA-F]{6}$');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'place_categories_icon_name_check'
+    ) THEN
+        ALTER TABLE public.place_categories
+            ADD CONSTRAINT place_categories_icon_name_check
+            CHECK (icon_name IN ('place', 'restaurant', 'cafe', 'shop', 'sightseeing', 'park', 'museum'));
+    END IF;
+END
+$$;
+
+INSERT INTO public.place_categories (
+    value,
+    display_name,
+    color,
+    icon_name,
+    display_order
+)
 VALUES
-    ('restaurant', 'レストラン', 10),
-    ('cafe', 'カフェ', 20),
-    ('fast_food', '軽食', 30),
-    ('shop', 'お店', 40),
-    ('tourism', '観光地', 50),
-    ('park', '公園', 60),
-    ('museum', '博物館・美術館', 70),
-    ('other', 'その他', 80)
+    ('restaurant', 'レストラン', '#a84436', 'restaurant', 10),
+    ('cafe', 'カフェ', '#8a5d28', 'cafe', 20),
+    ('fast_food', '軽食', '#b35c24', 'restaurant', 30),
+    ('shop', 'お店', '#356b61', 'shop', 40),
+    ('tourism', '観光地', '#315f73', 'sightseeing', 50),
+    ('park', '公園', '#3f7148', 'park', 60),
+    ('museum', '博物館・美術館', '#765789', 'museum', 70),
+    ('other', 'その他', '#5f6d72', 'place', 80)
 ON CONFLICT (value) DO UPDATE
 SET display_order = EXCLUDED.display_order;
 
